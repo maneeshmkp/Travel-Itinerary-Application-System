@@ -65,14 +65,14 @@ const Footer = () => {
               </li>
               <li className="flex items-center space-x-2 text-muted-foreground">
                 <Phone className="h-4 w-4" />
-                <span>+1 (555) 123-4567</span>
+                <span>+91 (807) 743-9938</span>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center">
-          <p className="text-muted-foreground">© 2024 TravelPlan. All rights reserved. Built with ❤️ for travelers.</p>
+          <p className="text-muted-foreground">© TravelPlan. All rights reserved. Built with ❤️ for travelers.</p>
         </div>
       </div>
     </footer>

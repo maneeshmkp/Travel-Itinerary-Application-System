@@ -7,7 +7,9 @@ import itineraryRoutes from "./routes/itineraryRoutes.js"
 import recommendationRoutes from "./routes/recommendationRoutes.js"
 
 // Load env vars
-dotenv.config()
+dotenv.config({
+  path: './env'
+}) 
 
 // Connect to database
 connectDB()
