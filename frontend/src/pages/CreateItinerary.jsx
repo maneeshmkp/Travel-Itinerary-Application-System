@@ -227,6 +227,7 @@ const CreateItinerary = () => {
       // Filter out empty highlights
       const cleanedData = {
         ...formData,
+        totalDays,
         highlights: formData.highlights.filter((h) => h.trim() !== ""),
         budget: {
           min: Number(formData.budget.min) || undefined,

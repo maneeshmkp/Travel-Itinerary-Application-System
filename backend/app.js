@@ -20,6 +20,12 @@ const app = express()
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ extended: true }))
 
+//default server
+app.get("/", (req, res) => {
+  res.send("backend app is running...");
+});
+
+
 // Enable CORS
 app.use(
   cors({

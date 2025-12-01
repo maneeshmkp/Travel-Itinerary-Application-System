@@ -15,7 +15,7 @@ const itinerarySchema = new mongoose.Schema(
     numberOfNights: {
       type: Number,
       required: [true, "Number of nights is required"],
-      min: 1,
+      min: 1, 
       max: 30,
     },
     totalDays: {

@@ -13,6 +13,7 @@ const Navbar = () => {
     { name: "Browse Itineraries", href: "/itineraries", icon: List },
     { name: "Create Itinerary", href: "/create", icon: Plus },
     { name: "Recommendations", href: "/recommendations", icon: Compass },
+    // {className: "SearchBar", href}
   ]
 
   const isActive = (path) => location.pathname === path
