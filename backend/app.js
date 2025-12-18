@@ -5,11 +5,10 @@ import connectDB from "./config/db.js"
 import errorHandler from "./middlewares/errorHandler.js"
 import itineraryRoutes from "./routes/itineraryRoutes.js"
 import recommendationRoutes from "./routes/recommendationRoutes.js"
+import authRoutes from "./routes/authRoutes.js"
 
 // Load env vars
-dotenv.config({
-  path: './env'
-}) 
+dotenv.config() 
 
 // Connect to database
 connectDB()
@@ -47,6 +46,7 @@ app.get("/api/health", (req, res) => {
 })
 
 // Routes will be added here
+app.use("/api/auth", authRoutes)
 app.use("/api/itineraries", itineraryRoutes)
 app.use("/api/recommendations", recommendationRoutes)
 
