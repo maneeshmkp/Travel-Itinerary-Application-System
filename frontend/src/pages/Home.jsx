@@ -55,32 +55,32 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-20">
+      <section className="relative gradient-hero py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="font-heading font-bold text-4xl md:text-6xl text-foreground mb-6">
+            <h1 className="font-heading font-bold text-5xl md:text-7xl text-foreground mb-6 leading-tight">
               Plan Your Perfect
-              <span className="text-primary block">Travel Adventure</span>
+              <span className="text-primary block mt-2">Travel Adventure</span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed font-medium">
               Create detailed itineraries, discover amazing destinations, and turn your travel dreams into reality. From
               tropical getaways to cultural explorations, we've got you covered.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/create"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center group"
+                className="button-primary shadow-md hover:shadow-lg"
               >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Itinerary
-                <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                <Plus className="h-5 w-5" />
+                <span>Create Itinerary</span>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 to="/recommendations"
-                className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
+                className="button-secondary shadow-md hover:shadow-lg"
               >
-                <Compass className="h-5 w-5 mr-2" />
-                Get Recommendations
+                <Compass className="h-5 w-5" />
+                <span>Get Recommendations</span>
               </Link>
             </div>
           </div>
@@ -88,31 +88,31 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-card">
+      <section className="py-24 md:py-32 bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-heading font-bold text-3xl md:text-4xl text-card-foreground mb-4">
+          <div className="text-center mb-16 md:mb-20">
+            <h2 className="font-heading font-bold text-4xl md:text-5xl text-card-foreground mb-4">
               Why Choose TravelPlan?
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
               Everything you need to plan, organize, and enjoy your perfect trip
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon
               return (
                 <div
                   key={index}
-                  className="text-center p-6 rounded-lg bg-background border border-border hover:shadow-md transition-all duration-300 animate-fade-in"
+                  className="card-hover text-center p-8 rounded-xl bg-background border border-border shadow-sm"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5">
                     <Icon className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="font-heading font-semibold text-lg text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+                  <h3 className="font-heading font-semibold text-lg text-foreground mb-3">{feature.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
                 </div>
               )
             })}
@@ -121,11 +121,11 @@ const Home = () => {
       </section>
 
       {/* Popular Destinations */}
-      <section className="py-20">
+      <section className="py-24 md:py-32 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-heading font-bold text-3xl md:text-4xl text-foreground mb-4">Popular Destinations</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-16 md:mb-20">
+            <h2 className="font-heading font-bold text-4xl md:text-5xl text-foreground mb-4">Popular Destinations</h2>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
               Explore our most loved travel destinations with ready-made itineraries
             </p>
           </div>
@@ -198,15 +198,15 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
+      <section className="py-24 md:py-32 bg-gradient-to-r from-primary to-primary/80">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="font-heading font-bold text-3xl md:text-4xl mb-4">Ready to Start Planning?</h2>
-          <p className="text-xl mb-8 opacity-90">
+          <h2 className="font-heading font-bold text-4xl md:text-5xl mb-5 text-primary-foreground">Ready to Start Planning?</h2>
+          <p className="text-lg md:text-xl mb-10 text-primary-foreground/95 font-medium max-w-2xl mx-auto leading-relaxed">
             Join thousands of travelers who trust TravelPlan for their adventures
           </p>
           <Link
             to="/create"
-            className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 px-8 py-3 rounded-lg font-medium transition-colors inline-flex items-center"
+            className="bg-primary-foreground text-primary hover:bg-primary-foreground/95 px-8 py-3 rounded-lg font-semibold transition-all duration-200 inline-flex items-center shadow-lg hover:shadow-xl"
           >
             <Plus className="h-5 w-5 mr-2" />
             Create Your First Itinerary

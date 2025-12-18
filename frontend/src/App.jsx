@@ -6,6 +6,9 @@ import CreateItinerary from "./pages/CreateItinerary"
 import Itineraries from "./pages/Itineraries"
 import ItineraryDetail from "./pages/ItineraryDetail"
 import Recommendations from "./pages/Recommendations"
+import Login from "./pages/Login"
+import Signup from "./pages/Signup"
+import ForgotPassword from "./pages/ForgotPassword"
 import NotFound from "./pages/NotFound"
 import SearchBar from "./pages/SearchBar"
 
@@ -21,6 +24,9 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/create" element={<CreateItinerary />} />
             <Route path="/itineraries" element={<Itineraries />} />
             <Route path="/itineraries/:id" element={<ItineraryDetail />} />
