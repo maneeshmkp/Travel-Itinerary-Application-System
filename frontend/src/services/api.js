@@ -10,10 +10,17 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 }) 
 
-// Request interceptor
+// Request interceptor - Add token to all requests
 api.interceptors.request.use(
   (config) => {
     console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`)
+    
+    // Add token to headers if available
+    const token = localStorage.getItem("authToken")
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    
     return config
   },
   (error) => {
@@ -71,6 +78,41 @@ export const recommendationAPI = {
 
   // Get similar itineraries
   getSimilar: (id) => api.get(`/recommendations/similar/${id}`),
+}
+
+// Authentication API calls
+export const authAPI = {
+  // Sign up new user
+  signup: (data) => api.post("/auth/signup", data),
+
+  // Login user
+  login: (data) => api.post("/auth/login", data),
+
+  // Forgot password - send reset link
+  forgotPassword: (data) => api.post("/auth/forgot-password", data),
+
+  // Reset password with token
+  resetPassword: (token, data) => api.post(`/auth/reset-password/${token}`, data),
+
+  // Get current user info
+  getCurrentUser: () => api.get("/auth/me"),
+
+  // Logout (frontend only - clears token)
+  logout: () => {
+    localStorage.removeItem("authToken")
+    localStorage.removeItem("user")
+  },
+
+  // Set auth token
+  setToken: (token) => {
+    localStorage.setItem("authToken", token)
+  },
+
+  // Get auth token
+  getToken: () => localStorage.getItem("authToken"),
+
+  // Check if user is authenticated
+  isAuthenticated: () => !!localStorage.getItem("authToken"),
 }
 
 // Health check
