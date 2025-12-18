@@ -32,7 +32,7 @@ Check your `.env` file has these variables:
 
 ```env
 PORT=8000
-MONGO_URI=mongodb+srv://12212016it_db_user:4Ol0HgTVRxt7K8CZ@cluster0.6ov0taa.mongodb.net
+MONGO_URI=${process.env.MONGO_URI}
 NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 FRONTEND_URL=http://localhost:5173
@@ -89,7 +89,7 @@ npm install
 
 **Solution:** Check your MONGO_URI in .env file:
 ```
-MONGO_URI=mongodb+srv://12212016it_db_user:4Ol0HgTVRxt7K8CZ@cluster0.6ov0taa.mongodb.net
+
 ```
 
 Make sure:
