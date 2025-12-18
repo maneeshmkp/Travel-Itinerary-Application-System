@@ -89,7 +89,7 @@ npm install
 
 **Solution:** Check your MONGO_URI in .env file:
 ```
-MONGO_URI=mongodb+srv://12212016it_db_user:4Ol0HgTVRxt7K8CZ@cluster0.6ov0taa.mongodb.net
+
 ```
 
 Make sure:
