@@ -6,6 +6,85 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .form-label {
+    @apply block text-sm font-medium text-gray-600 mb-1;
+  }
+
+  .form-label-inline {
+    @apply inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 mb-1;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 placeholder:text-gray-400
+      shadow-sm hover:border-gray-300
+      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+      transition-all duration-200
+      disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-gray-200;
+  }
+
+  .form-textarea {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 placeholder:text-gray-400
+      shadow-sm hover:border-gray-300 min-h-[100px]
+      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+      transition-all duration-200
+      disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .form-select {
+    @apply w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:border-gray-300
+      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+      transition-all duration-200
+      disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .form-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8;
+  }
+
+  .form-page {
+    @apply min-h-screen bg-gray-50;
+  }
+
+  .form-search-shell {
+    @apply flex items-stretch rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden
+      transition-all duration-200 hover:border-gray-300
+      focus-within:ring-2 focus-within:ring-blue-500/25 focus-within:border-blue-400;
+  }
+
+  .form-search-input {
+    @apply w-full border-0 bg-transparent py-2.5 pl-2 pr-3 text-sm text-gray-700 placeholder:text-gray-400
+      focus:outline-none focus:ring-0;
+  }
+
+  .dark .form-input,
+  .dark .form-textarea,
+  .dark .form-select {
+    @apply bg-gray-900/40 border-gray-600 text-gray-100 placeholder:text-gray-500 hover:border-gray-500;
+  }
+
+  .dark .form-label,
+  .dark .form-label-inline {
+    @apply text-gray-400;
+  }
+
+  .dark .form-card {
+    @apply bg-gray-900/40 border-gray-700;
+  }
+
+  .dark .form-page {
+    @apply bg-gray-950;
+  }
+
+  .dark .form-search-shell {
+    @apply border-gray-600 bg-gray-900/40 hover:border-gray-500;
+  }
+
+  .dark .form-search-input {
+    @apply text-gray-100 placeholder:text-gray-500;
+  }
+}
+
 /* 3. CSS Variables - Professional Blue & Teal Theme */
 :root {
   --background: #ffffff;
@@ -172,10 +251,6 @@ p { color: var(--muted-foreground); line-height: 1.7; }
 }
 
 /* 11. Professional Gradients */
-.gradient-hero {
-  background: linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(0, 168, 232, 0.04) 50%, rgba(6, 182, 212, 0.04) 100%);
-}
-
 .gradient-accent {
   background: linear-gradient(135deg, var(--primary), var(--secondary));
 }
@@ -196,10 +271,6 @@ p { color: var(--muted-foreground); line-height: 1.7; }
 /* 13. Smooth Transitions */
 * {
   @apply transition-colors duration-200;
-}
-
-input, textarea, select {
-  @apply border border-border rounded-lg px-4 py-2.5 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200;
 }
 
 /* 14. Professional Scrollbar */

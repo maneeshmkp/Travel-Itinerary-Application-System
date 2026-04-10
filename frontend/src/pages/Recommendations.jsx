@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom"
 import { MapPin, Calendar, Tag, Compass, Loader2, Star } from "lucide-react"
 import { recommendationAPI } from "../services/api"
 import ItineraryCard from "../components/ItineraryCard"
+import DestinationHeroImage from "../components/DestinationHeroImage"
 
 const Recommendations = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -27,7 +28,7 @@ const Recommendations = () => {
     const fetchDestinations = async () => {
       try {
         const response = await recommendationAPI.getDestinations()
-        setDestinations(response.data.data)
+        setDestinations(response.data?.data ?? [])
       } catch (error) {
         console.error("Error fetching destinations:", error)
       } finally {
@@ -50,7 +51,7 @@ const Recommendations = () => {
     try {
       const params = Object.fromEntries(Object.entries(criteria).filter(([_, value]) => value !== ""))
       const response = await recommendationAPI.getRecommendations(params)
-      setRecommendations(response.data.data)
+      setRecommendations(response.data?.data ?? [])
     } catch (error) {
       console.error("Error fetching recommendations:", error)
     } finally {
@@ -86,30 +87,30 @@ const Recommendations = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
+    <div className="form-page py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="font-heading font-bold text-3xl md:text-4xl text-foreground mb-4">
+          <h1 className="font-heading font-bold text-3xl md:text-4xl text-gray-900 mb-4">
             Get Personalized Recommendations
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Tell us what you're looking for and we'll suggest the perfect itineraries for your next adventure
           </p>
         </div>
 
         {/* Criteria Form */}
-        <div className="bg-card border border-border rounded-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-card-foreground mb-2">
-                <Calendar className="h-4 w-4 inline mr-1" />
+        <div className="form-card mb-8 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="space-y-1">
+              <label className="form-label-inline">
+                <Calendar className="h-4 w-4 text-gray-400" />
                 Number of Nights
               </label>
               <select
                 value={criteria.nights}
                 onChange={(e) => handleCriteriaChange("nights", e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-select"
               >
                 <option value="">Any duration</option>
                 <option value="2">2 nights</option>
@@ -121,9 +122,9 @@ const Recommendations = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-card-foreground mb-2">
-                <MapPin className="h-4 w-4 inline mr-1" />
+            <div className="space-y-1">
+              <label className="form-label-inline">
+                <MapPin className="h-4 w-4 text-gray-400" />
                 Destination
               </label>
               <input
@@ -131,19 +132,19 @@ const Recommendations = () => {
                 value={criteria.destination}
                 onChange={(e) => handleCriteriaChange("destination", e.target.value)}
                 placeholder="e.g., Phuket, Krabi"
-                className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-input"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-card-foreground mb-2">
-                <Tag className="h-4 w-4 inline mr-1" />
+            <div className="space-y-1">
+              <label className="form-label-inline">
+                <Tag className="h-4 w-4 text-gray-400" />
                 Travel Style
               </label>
               <select
                 value={criteria.tags}
                 onChange={(e) => handleCriteriaChange("tags", e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-select"
               >
                 <option value="">Any style</option>
                 {tagOptions.map((tag) => (
@@ -154,22 +155,23 @@ const Recommendations = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-card-foreground mb-2">Budget (USD)</label>
+            <div className="space-y-1">
+              <label className="form-label">Budget (USD)</label>
               <input
                 type="number"
                 value={criteria.budget}
                 onChange={(e) => handleCriteriaChange("budget", e.target.value)}
                 placeholder="Max budget"
-                className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-input"
               />
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2 border-t border-gray-100">
             <button
+              type="button"
               onClick={clearCriteria}
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-6 py-2 rounded-md font-medium transition-colors"
+              className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm"
             >
               Clear All
             </button>
@@ -195,35 +197,43 @@ const Recommendations = () => {
                 {destinations.map((destination, index) => (
                   <button
                     key={index}
+                    type="button"
                     onClick={() => handleDestinationClick(destination.destination)}
-                    className="bg-card border border-border rounded-lg p-4 hover:shadow-md transition-all duration-300 text-left group"
+                    className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 text-left group w-full"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-heading font-semibold text-lg text-card-foreground group-hover:text-primary transition-colors">
+                    <DestinationHeroImage
+                      destination={destination.destination}
+                      heightClass="h-36"
+                      roundedClass="rounded-t-lg"
+                      badge={
+                        <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold shadow-md">
+                          <Star className="h-3.5 w-3.5" />
+                          <span>{destination.itineraryCount}</span>
+                        </div>
+                      }
+                    />
+                    <div className="p-4">
+                      <h3 className="font-heading font-semibold text-lg text-card-foreground group-hover:text-primary transition-colors mb-2">
                         {destination.destination}
                       </h3>
-                      <div className="flex items-center text-secondary">
-                        <Star className="h-4 w-4 mr-1" />
-                        <span className="text-sm font-medium">{destination.itineraryCount}</span>
+
+                      <p className="text-muted-foreground text-sm mb-3">
+                        {destination.nightRange.min} - {destination.nightRange.max} nights available
+                      </p>
+
+                      <div className="flex flex-wrap gap-1">
+                        {(destination.tags ?? []).slice(0, 3).map((tag, tagIndex) => (
+                          <span
+                            key={tagIndex}
+                            className="px-2 py-1 bg-secondary/10 text-secondary text-xs rounded-full border border-secondary/20"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {(destination.tags ?? []).length > 3 && (
+                          <span className="text-xs text-muted-foreground">+{(destination.tags ?? []).length - 3}</span>
+                        )}
                       </div>
-                    </div>
-
-                    <p className="text-muted-foreground text-sm mb-3">
-                      {destination.nightRange.min} - {destination.nightRange.max} nights available
-                    </p>
-
-                    <div className="flex flex-wrap gap-1">
-                      {destination.tags.slice(0, 3).map((tag, tagIndex) => (
-                        <span
-                          key={tagIndex}
-                          className="px-2 py-1 bg-secondary/10 text-secondary text-xs rounded-full border border-secondary/20"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {destination.tags.length > 3 && (
-                        <span className="text-xs text-muted-foreground">+{destination.tags.length - 3}</span>
-                      )}
                     </div>
                   </button>
                 ))}

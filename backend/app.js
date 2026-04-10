@@ -50,15 +50,15 @@ app.use("/api/auth", authRoutes)
 app.use("/api/itineraries", itineraryRoutes)
 app.use("/api/recommendations", recommendationRoutes)
 
-// Error handler middleware
-app.use(errorHandler)
-
-// Handle 404
-app.use("*", (req, res) => {
+// Unmatched API routes (must run before the global error handler)
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: "Route not found",
   })
 })
+
+// Error handler must be registered last
+app.use(errorHandler)
 
 export default app

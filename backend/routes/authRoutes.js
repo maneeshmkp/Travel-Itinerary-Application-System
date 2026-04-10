@@ -7,6 +7,7 @@ import {
   resetPassword,
   getCurrentUser,
 } from "../controllers/authController.js"
+import { protect } from "../middlewares/authMiddleware.js"
 
 const router = express.Router()
 
@@ -57,6 +58,6 @@ router.post("/signup", validateSignup, handleValidationErrors, signup)
 router.post("/login", validateLogin, handleValidationErrors, login)
 router.post("/forgot-password", validateForgotPassword, handleValidationErrors, forgotPassword)
 router.post("/reset-password/:resetToken", validateResetPassword, handleValidationErrors, resetPassword)
-router.get("/me", getCurrentUser) // Protected route - requires token
+router.get("/me", protect, getCurrentUser)
 
 export default router

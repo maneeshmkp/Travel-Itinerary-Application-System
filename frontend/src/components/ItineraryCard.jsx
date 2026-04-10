@@ -1,5 +1,6 @@
 import { Calendar, MapPin, Clock, Tag, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
+import DestinationHeroImage from "./DestinationHeroImage"
 
 const ItineraryCard = ({ itinerary }) => {
   const {
@@ -26,19 +27,16 @@ const ItineraryCard = ({ itinerary }) => {
 
   return (
     <div className="card-hover bg-card border border-border rounded-xl shadow-sm overflow-hidden group">
-      {/* Header Image Placeholder */}
-      <div className="h-48 bg-gradient-to-br from-primary/20 to-secondary/20 relative overflow-hidden">
-        <img
-          src={`/abstract-geometric-shapes.png?height=192&width=400&query=${destination} travel destination`}
-          alt={destination}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        <div className="absolute top-4 right-4">
-          <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold shadow-md">
+      <DestinationHeroImage
+        destination={destination}
+        heightClass="h-48"
+        roundedClass="rounded-t-xl"
+        badge={
+          <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full font-semibold shadow-md">
             {numberOfNights} nights
           </span>
-        </div>
-      </div>
+        }
+      />
 
       {/* Content */}
       <div className="p-6 md:p-7">

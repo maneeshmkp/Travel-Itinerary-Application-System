@@ -2,20 +2,24 @@
 
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, MapPin, Plus, List, Compass, Home, LogIn, UserPlus } from "lucide-react"
+import { Menu, X, MapPin, Plus, List, Compass, Home, LogIn, UserPlus, LogOut, Bookmark } from "lucide-react"
+import { useAuth } from "../context/AuthContext"
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const location = useLocation()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { isAuthenticated, logout } = useAuth()
 
-  const navigation = [
-    { name: "Home", href: "/", icon: Home },
+  const publicNav = [{ name: "Home", href: "/", icon: Home }]
+
+  const restrictedNav = [
     { name: "Browse Itineraries", href: "/itineraries", icon: List },
+    { name: "Saved", href: "/saved", icon: Bookmark },
     { name: "Create Itinerary", href: "/create", icon: Plus },
     { name: "Recommendations", href: "/recommendations", icon: Compass },
-    // {className: "SearchBar", href}
   ]
+
+  const navigation = isAuthenticated ? [...publicNav, ...restrictedNav] : publicNav
 
   const isActive = (path) => location.pathname === path
 
@@ -32,7 +36,6 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => {
               const Icon = item.icon
@@ -51,15 +54,15 @@ const Navbar = () => {
                 </Link>
               )
             })}
-            
-            {/* Login/Account Buttons */}
+
             <div className="flex items-center space-x-2 ml-6 pl-6 border-l border-border">
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <button
-                  onClick={() => setIsLoggedIn(false)}
+                  type="button"
+                  onClick={() => logout()}
                   className="flex items-center space-x-1.5 px-4 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-muted transition-all duration-200"
                 >
-                  <LogIn className="h-4.5 w-4.5" />
+                  <LogOut className="h-4.5 w-4.5" />
                   <span>Logout</span>
                 </button>
               ) : (
@@ -83,16 +86,14 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
-            <button onClick={() => setIsOpen(!isOpen)} className="text-muted-foreground hover:text-foreground p-2">
+            <button type="button" onClick={() => setIsOpen(!isOpen)} className="text-muted-foreground hover:text-foreground p-2">
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation */}
       {isOpen && (
         <div className="md:hidden bg-card border-t border-border">
           <div className="px-2 pt-2 pb-3 space-y-1">
@@ -112,18 +113,18 @@ const Navbar = () => {
                 </Link>
               )
             })}
-            
-            {/* Mobile Login/Account Buttons */}
+
             <div className="px-3 py-2 border-t border-border mt-2 pt-3 space-y-2">
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <button
+                  type="button"
                   onClick={() => {
-                    setIsLoggedIn(false)
+                    logout()
                     setIsOpen(false)
                   }}
                   className="w-full flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-card-foreground hover:bg-muted transition-colors"
                 >
-                  <LogIn className="h-5 w-5" />
+                  <LogOut className="h-5 w-5" />
                   <span>Logout</span>
                 </button>
               ) : (

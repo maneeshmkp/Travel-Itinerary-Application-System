@@ -7,12 +7,12 @@ export const getRecommendations = async (req, res, next) => {
   try {
     const { nights, destination, tags, budget } = req.query
 
-    // Build query for recommended itineraries
-    const query = { isRecommended: true }
+    // Match any itinerary — user-created rows default isRecommended: false and were invisible before
+    const query = {}
 
     if (nights) {
       const nightsNum = Number.parseInt(nights)
-      // Allow some flexibility in nights (±1 day)
+      // Allow some flexibility in nights (±1 night)
       query.numberOfNights = { $gte: nightsNum - 1, $lte: nightsNum + 1 }
     }
 
@@ -21,7 +21,7 @@ export const getRecommendations = async (req, res, next) => {
     }
 
     if (tags) {
-      const tagArray = tags.split(",")
+      const tagArray = tags.split(",").map((t) => t.trim()).filter(Boolean)
       query.tags = { $in: tagArray }
     }
 
@@ -38,12 +38,12 @@ export const getRecommendations = async (req, res, next) => {
           model: "Activity",
         },
       })
-      .sort({ numberOfNights: 1, createdAt: -1 })
+      .sort({ isRecommended: -1, numberOfNights: 1, createdAt: -1 })
       .limit(10)
 
-    // If no exact matches, get popular destinations
+    // If filters produced nothing, suggest recent itineraries (still not limited to isRecommended)
     if (recommendations.length === 0) {
-      const fallbackRecommendations = await Itinerary.find({ isRecommended: true })
+      const fallbackRecommendations = await Itinerary.find({})
         .populate({
           path: "days",
           populate: {
@@ -51,7 +51,7 @@ export const getRecommendations = async (req, res, next) => {
             model: "Activity",
           },
         })
-        .sort({ createdAt: -1 })
+        .sort({ isRecommended: -1, createdAt: -1 })
         .limit(5)
 
       return res.status(200).json({
@@ -78,7 +78,7 @@ export const getRecommendations = async (req, res, next) => {
 export const getDestinations = async (req, res, next) => {
   try {
     const destinations = await Itinerary.aggregate([
-      { $match: { isRecommended: true } },
+      { $match: {} },
       {
         $group: {
           _id: "$destination",
@@ -92,7 +92,7 @@ export const getDestinations = async (req, res, next) => {
       { $sort: { count: -1 } },
     ])
 
-    // Flatten tags and highlights
+    // Flatten tags and highlights ($addToSet on array fields yields nested arrays)
     const processedDestinations = destinations.map((dest) => ({
       destination: dest._id,
       itineraryCount: dest.count,
@@ -100,8 +100,8 @@ export const getDestinations = async (req, res, next) => {
         min: dest.minNights,
         max: dest.maxNights,
       },
-      tags: [...new Set(dest.tags.flat())],
-      highlights: [...new Set(dest.highlights.flat())],
+      tags: [...new Set((dest.tags ?? []).flat().filter(Boolean))],
+      highlights: [...new Set((dest.highlights ?? []).flat().filter(Boolean))],
     }))
 
     res.status(200).json({

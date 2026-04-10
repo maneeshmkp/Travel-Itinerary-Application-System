@@ -253,7 +253,7 @@ const CreateItinerary = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
+    <div className="form-page py-8">
       {/* Toast notifications */}
       {toasts.map((toast) => (
         <Toast key={toast.id} type={toast.type} message={toast.message} onClose={() => removeToast(toast.id)} />
@@ -275,72 +275,72 @@ const CreateItinerary = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="font-heading font-semibold text-xl text-card-foreground mb-4">Basic Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-card-foreground mb-2">Title *</label>
+          <div className="form-card space-y-5">
+            <h2 className="font-heading font-semibold text-xl text-gray-900">Basic Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1">
+                <label className="form-label">Title *</label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Amazing Phuket Adventure"
+                  className="form-input"
+                  placeholder="Enter itinerary title"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-card-foreground mb-2">Destination *</label>
+              <div className="space-y-1">
+                <label className="form-label">Destination *</label>
                 <input
                   type="text"
                   required
                   value={formData.destination}
                   onChange={(e) => handleInputChange("destination", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Phuket, Thailand"
+                  className="form-input"
+                  placeholder="e.g. Phuket, Thailand"
                 />
               </div>
             </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-card-foreground mb-2">Description</label>
+            <div className="space-y-1">
+              <label className="form-label">Description</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-textarea min-h-[88px]"
                 placeholder="Describe your itinerary..."
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-card-foreground mb-2">Budget Min ($)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="space-y-1">
+                <label className="form-label">Budget Min ($)</label>
                 <input
                   type="number"
                   value={formData.budget.min}
                   onChange={(e) => handleBudgetChange("min", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="form-input"
                   placeholder="1000"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-card-foreground mb-2">Budget Max ($)</label>
+              <div className="space-y-1">
+                <label className="form-label">Budget Max ($)</label>
                 <input
                   type="number"
                   value={formData.budget.max}
                   onChange={(e) => handleBudgetChange("max", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="form-input"
                   placeholder="2000"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-card-foreground mb-2">Best Time to Visit</label>
+              <div className="space-y-1">
+                <label className="form-label">Best Time to Visit</label>
                 <input
                   type="text"
                   value={formData.bestTimeToVisit}
                   onChange={(e) => handleInputChange("bestTimeToVisit", e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="form-input"
                   placeholder="November - March"
                 />
               </div>
@@ -348,16 +348,16 @@ const CreateItinerary = () => {
           </div>
 
           {/* Highlights */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="font-heading font-semibold text-xl text-card-foreground mb-4">Highlights</h2>
+          <div className="form-card space-y-5">
+            <h2 className="font-heading font-semibold text-xl text-gray-900">Highlights</h2>
             {formData.highlights.map((highlight, index) => (
-              <div key={index} className="flex gap-2 mb-2">
+              <div key={index} className="flex gap-2">
                 <input
                   type="text"
                   value={highlight}
                   onChange={(e) => handleHighlightChange(index, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Beautiful beaches and crystal clear waters"
+                  className="form-input flex-1"
+                  placeholder="e.g. Sunset viewpoints, local food tour"
                 />
                 {formData.highlights.length > 1 && (
                   <button
@@ -381,18 +381,18 @@ const CreateItinerary = () => {
           </div>
 
           {/* Tags */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="font-heading font-semibold text-xl text-card-foreground mb-4">Tags</h2>
+          <div className="form-card space-y-5">
+            <h2 className="font-heading font-semibold text-xl text-gray-900">Tags</h2>
             <div className="flex flex-wrap gap-2">
               {tagOptions.map((tag) => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => handleTagToggle(tag)}
-                  className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm border transition-all duration-200 ${
                     formData.tags.includes(tag)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground border-border hover:border-primary"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   {tag}
@@ -404,7 +404,7 @@ const CreateItinerary = () => {
           {/* Days */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading font-semibold text-xl text-foreground">
+              <h2 className="font-heading font-semibold text-xl text-gray-900">
                 Daily Itinerary ({formData.numberOfNights} nights, {formData.days.length} days)
               </h2>
               <button
@@ -418,9 +418,9 @@ const CreateItinerary = () => {
             </div>
 
             {formData.days.map((day, dayIndex) => (
-              <div key={dayIndex} className="bg-card border border-border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-heading font-semibold text-lg text-card-foreground flex items-center">
+              <div key={dayIndex} className="form-card space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-heading font-semibold text-lg text-gray-900 flex items-center">
                     <Calendar className="h-5 w-5 mr-2 text-primary" />
                     Day {day.dayNumber}
                   </h3>
@@ -436,17 +436,17 @@ const CreateItinerary = () => {
                 </div>
 
                 {/* Hotel */}
-                <div className="mb-6">
-                  <h4 className="font-medium text-card-foreground mb-3 flex items-center">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-800 flex items-center">
                     <Hotel className="h-4 w-4 mr-2 text-primary" />
                     Hotel
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <input
                       type="text"
                       value={day.hotel.name}
                       onChange={(e) => handleDayChange(dayIndex, "hotel.name", e.target.value)}
-                      className="px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="form-input"
                       placeholder="Hotel name *"
                       required
                     />
@@ -454,8 +454,8 @@ const CreateItinerary = () => {
                       type="text"
                       value={day.hotel.location}
                       onChange={(e) => handleDayChange(dayIndex, "hotel.location", e.target.value)}
-                      className="px-3 py-2 border border-border rounded-md bg-input text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Hotel location *"
+                      className="form-input"
+                      placeholder="Hotel area or address *"
                       required
                     />
                   </div>
@@ -463,8 +463,8 @@ const CreateItinerary = () => {
 
                 {/* Activities */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-card-foreground flex items-center">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-semibold text-gray-800 flex items-center">
                       <Activity className="h-4 w-4 mr-2 text-primary" />
                       Activities
                     </h4>
@@ -479,9 +479,14 @@ const CreateItinerary = () => {
                   </div>
 
                   {day.activities.map((activity, activityIndex) => (
-                    <div key={activityIndex} className="border border-border rounded-md p-4 mb-3 bg-muted">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-muted-foreground">Activity {activityIndex + 1}</span>
+                    <div
+                      key={activityIndex}
+                      className="rounded-xl border border-gray-100 bg-gray-50/90 p-5 mb-4 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Activity {activityIndex + 1}
+                        </span>
                         {day.activities.length > 1 && (
                           <button
                             type="button"
@@ -493,12 +498,12 @@ const CreateItinerary = () => {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <input
                           type="text"
                           value={activity.name}
                           onChange={(e) => handleActivityChange(dayIndex, activityIndex, "name", e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="form-input"
                           placeholder="Activity name *"
                           required
                         />
@@ -506,24 +511,24 @@ const CreateItinerary = () => {
                           type="text"
                           value={activity.location}
                           onChange={(e) => handleActivityChange(dayIndex, activityIndex, "location", e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="form-input"
                           placeholder="Location *"
                           required
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <input
                           type="text"
                           value={activity.time}
                           onChange={(e) => handleActivityChange(dayIndex, activityIndex, "time", e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="form-input"
                           placeholder="Time (e.g., 9:00 AM)"
                         />
                         <select
                           value={activity.category}
                           onChange={(e) => handleActivityChange(dayIndex, activityIndex, "category", e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="form-select"
                         >
                           {activityCategories.map((cat) => (
                             <option key={cat} value={cat}>
@@ -535,7 +540,7 @@ const CreateItinerary = () => {
                           type="text"
                           value={activity.duration}
                           onChange={(e) => handleActivityChange(dayIndex, activityIndex, "duration", e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                          className="form-input"
                           placeholder="Duration"
                         />
                       </div>
@@ -544,7 +549,7 @@ const CreateItinerary = () => {
                         value={activity.description}
                         onChange={(e) => handleActivityChange(dayIndex, activityIndex, "description", e.target.value)}
                         rows={2}
-                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="form-textarea min-h-[72px]"
                         placeholder="Activity description *"
                         required
                       />
@@ -556,18 +561,18 @@ const CreateItinerary = () => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-border">
+          <div className="flex justify-end gap-3 pt-8 border-t border-gray-100">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="px-6 py-2 border border-border rounded-md text-foreground hover:bg-muted transition-colors"
+              className="px-6 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 px-6 py-2 rounded-md font-medium transition-colors flex items-center"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 rounded-lg font-medium shadow-sm transition-all flex items-center"
             >
               {loading ? (
                 <>

@@ -1,6 +1,19 @@
 import axios from "axios"
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api"
+/** Ensures requests hit /api/... even when VITE_API_URL is set to http://host:port without /api */
+function resolveApiBaseUrl() {
+  const raw = import.meta.env.VITE_API_URL?.trim()
+  if (!raw) {
+    // Dev: same-origin /api → Vite proxy → backend (avoids CORS and stale direct-to-wrong-port issues)
+    if (import.meta.env.DEV) return "/api"
+    return "http://localhost:8000/api"
+  }
+  const noTrail = raw.replace(/\/+$/, "")
+  if (noTrail.endsWith("/api")) return noTrail
+  return `${noTrail}/api`
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,7 +29,7 @@ api.interceptors.request.use(
     console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`)
     
     // Add token to headers if available
-    const token = localStorage.getItem("authToken")
+    const token = localStorage.getItem("token") || localStorage.getItem("authToken")
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -39,7 +52,10 @@ api.interceptors.response.use(
     if (error.code === "ECONNABORTED") {
       error.message = "Request timed out. Please check your connection and try again."
     } else if (error.response?.status === 404) {
-      error.message = "The requested resource was not found."
+      error.message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "The requested resource was not found."
     } else if (error.response?.status === 500) {
       error.message = "Server error. Please try again later."
     } else if (!error.response) {
@@ -55,6 +71,10 @@ export const itineraryAPI = {
   // Get all itineraries with optional filters
   getAll: (params = {}) => api.get("/itineraries", { params }),
 
+  // Autocomplete (min ~2 chars recommended)
+  getSuggestions: (search) =>
+    api.get("/itineraries/suggestions", { params: { search } }),
+
   // Get single itinerary by ID
   getById: (id) => api.get(`/itineraries/${id}`),
 
@@ -66,6 +86,13 @@ export const itineraryAPI = {
 
   // Delete itinerary
   delete: (id) => api.delete(`/itineraries/${id}`),
+
+  // Saved itineraries (auth required)
+  saveForUser: (id) => api.post(`/itineraries/${id}/save`),
+  unsaveForUser: (id) => api.delete(`/itineraries/${id}/save`),
+  checkSaved: (id) => api.get(`/itineraries/${id}/saved`),
+  /** List saved trips (auth). Uses GET /api/itineraries/saved */
+  getMySaved: () => api.get("/itineraries/saved"),
 }
 
 // Recommendation API calls
@@ -99,20 +126,22 @@ export const authAPI = {
 
   // Logout (frontend only - clears token)
   logout: () => {
+    localStorage.removeItem("token")
     localStorage.removeItem("authToken")
     localStorage.removeItem("user")
   },
 
   // Set auth token
   setToken: (token) => {
-    localStorage.setItem("authToken", token)
+    localStorage.setItem("token", token)
+    localStorage.removeItem("authToken")
   },
 
   // Get auth token
-  getToken: () => localStorage.getItem("authToken"),
+  getToken: () => localStorage.getItem("token") || localStorage.getItem("authToken"),
 
   // Check if user is authenticated
-  isAuthenticated: () => !!localStorage.getItem("authToken"),
+  isAuthenticated: () => !!(localStorage.getItem("token") || localStorage.getItem("authToken")),
 }
 
 // Health check

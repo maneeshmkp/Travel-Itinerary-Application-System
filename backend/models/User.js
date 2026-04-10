@@ -24,6 +24,15 @@ const userSchema = new mongoose.Schema(
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    savedItineraries: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Itinerary",
+        },
+      ],
+      default: [],
+    },
     createdAt: {
       type: Date,
       default: Date.now,

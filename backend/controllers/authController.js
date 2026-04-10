@@ -3,9 +3,17 @@ import jwt from "jsonwebtoken"
 import crypto from "crypto"
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../utils/mailService.js"
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error("JWT_SECRET is not configured")
+  }
+  return secret
+}
+
 // Generate JWT Token
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || "your-secret-key", {
+  return jwt.sign({ id: userId }, getJwtSecret(), {
     expiresIn: "7d",
   })
 }
@@ -250,18 +258,9 @@ export const resetPassword = async (req, res) => {
 
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
-export const getCurrentUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId)
-
-    res.status(200).json({
-      success: true,
-      user,
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || "Error fetching user",
-    })
-  }
+export const getCurrentUser = (req, res) => {
+  res.status(200).json({
+    success: true,
+    user: req.user,
+  })
 }

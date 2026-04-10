@@ -65,9 +65,11 @@ const itinerarySchema = new mongoose.Schema(
   },
 )
 
-// Virtual for calculating total days
-itinerarySchema.pre("save", function (next) {
-  this.totalDays = this.numberOfNights + 1
+// Set before validation — required `totalDays` fails if this only ran on `save`
+itinerarySchema.pre("validate", function (next) {
+  if (this.numberOfNights != null) {
+    this.totalDays = this.numberOfNights + 1
+  }
   next()
 })
 

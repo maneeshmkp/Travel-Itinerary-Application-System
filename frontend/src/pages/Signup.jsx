@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react"
 import { useToast } from "../hooks/useToast"
-import { authAPI } from "../services/api"
+import { useAuth } from "../context/AuthContext"
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +16,8 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const navigate = useNavigate()
+  const location = useLocation()
+  const { signup } = useAuth()
   const { showSuccess, showError } = useToast()
 
   const handleChange = (e) => {
@@ -59,21 +61,18 @@ const Signup = () => {
     setIsLoading(true)
 
     try {
-      // Make API call to backend
-      const response = await authAPI.signup({
+      await signup({
         name: formData.name,
         email: formData.email,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       })
-
-      if (response.data.success) {
-        // Save token and user data
-        authAPI.setToken(response.data.token)
-        localStorage.setItem("user", JSON.stringify(response.data.user))
-        
-        showSuccess(response.data.message || "Account created successfully!")
-        navigate("/")
+      showSuccess("Account created successfully!")
+      const from = location.state?.from
+      if (from?.pathname) {
+        navigate(`${from.pathname}${from.search || ""}`, { replace: true })
+      } else {
+        navigate("/", { replace: true })
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || "Sign up failed. Please try again."
@@ -84,30 +83,30 @@ const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+    <div className="form-page flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-heading font-bold text-foreground mb-2">Create Account</h1>
-          <p className="text-muted-foreground">Join TravelPlan and start planning your adventures</p>
+          <h1 className="text-3xl font-heading font-bold text-gray-900 mb-2">Create Account</h1>
+          <p className="text-gray-600">Join TravelPlan and start planning your adventures</p>
         </div>
 
         {/* Signup Form */}
-        <form onSubmit={handleSubmit} className="bg-card rounded-lg border border-border shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="form-card space-y-5">
           {/* Error Message */}
           {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-md text-sm">
+            <div className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
               {error}
             </div>
           )}
 
           {/* Name Field */}
-          <div className="space-y-2">
-            <label htmlFor="name" className="block text-sm font-medium text-foreground">
+          <div className="space-y-1">
+            <label htmlFor="name" className="form-label">
               Full Name
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-gray-400 pointer-events-none" />
               <input
                 id="name"
                 name="name"
@@ -115,68 +114,68 @@ const Signup = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-input pl-10"
                 disabled={isLoading}
               />
             </div>
           </div>
 
           {/* Email Field */}
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">
+          <div className="space-y-1">
+            <label htmlFor="email" className="form-label">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-gray-400 pointer-events-none" />
               <input
                 id="email"
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter your email"
-                className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="name@example.com"
+                className="form-input pl-10"
                 disabled={isLoading}
               />
             </div>
           </div>
 
           {/* Password Field */}
-          <div className="space-y-2">
-            <label htmlFor="password" className="block text-sm font-medium text-foreground">
+          <div className="space-y-1">
+            <label htmlFor="password" className="form-label">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-gray-400 pointer-events-none" />
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter your password"
-                className="w-full pl-10 pr-10 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Create a password"
+                className="form-input pl-10 pr-11"
                 disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
                 disabled={isLoading}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">At least 6 characters</p>
+            <p className="text-xs text-gray-500">At least 6 characters</p>
           </div>
 
           {/* Confirm Password Field */}
-          <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+          <div className="space-y-1">
+            <label htmlFor="confirmPassword" className="form-label">
               Confirm Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-gray-400 pointer-events-none" />
               <input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -184,13 +183,13 @@ const Signup = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm your password"
-                className="w-full pl-10 pr-10 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="form-input pl-10 pr-11"
                 disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
                 disabled={isLoading}
               >
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -202,16 +201,16 @@ const Signup = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-primary text-primary-foreground py-2 rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold shadow-sm hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
 
         {/* Login Link */}
-        <p className="text-center text-muted-foreground mt-6">
+        <p className="text-center text-gray-600 mt-6 text-sm">
           Already have an account?{" "}
-          <Link to="/login" className="text-primary hover:text-primary/90 font-medium">
+          <Link to="/login" className="text-primary hover:text-primary/90 font-semibold">
             Sign in here
           </Link>
         </p>

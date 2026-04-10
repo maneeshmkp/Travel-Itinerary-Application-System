@@ -1,30 +1,121 @@
+import mongoose from "mongoose"
 import Itinerary from "../models/Itinerary.js"
 import Day from "../models/Day.js"
 import Activity from "../models/Activity.js"
+import User from "../models/User.js"
 import { validationResult } from "express-validator"
+
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/** Build $or conditions on Itinerary for full-text-style search (days/activities are refs, not embedded). */
+async function buildItinerarySearchOr(searchTrimmed) {
+  const pattern = escapeRegex(searchTrimmed)
+  const rx = new RegExp(pattern, "i")
+
+  const activityIds = await Activity.find({
+    $or: [{ name: rx }, { description: rx }, { location: rx }],
+  }).distinct("_id")
+
+  const dayOr = [
+    { "hotel.name": rx },
+    { "hotel.location": rx },
+    { "transfers.from": rx },
+    { "transfers.to": rx },
+  ]
+  if (activityIds.length > 0) {
+    dayOr.push({ activities: { $in: activityIds } })
+  }
+
+  const dayIds = await Day.find({ $or: dayOr }).distinct("_id")
+
+  const itineraryOr = [
+    { title: rx },
+    { destination: rx },
+    { tags: rx },
+    { highlights: rx },
+  ]
+  if (dayIds.length > 0) {
+    itineraryOr.push({ days: { $in: dayIds } })
+  }
+
+  return itineraryOr
+}
+
+// @desc    Search autocomplete suggestions
+// @route   GET /api/itineraries/suggestions
+// @access  Public
+export const getSearchSuggestions = async (req, res, next) => {
+  try {
+    const raw = (req.query.search || req.query.q || "").trim()
+    if (raw.length < 2) {
+      return res.status(200).json({ success: true, data: [] })
+    }
+
+    const pattern = escapeRegex(raw)
+    const rx = new RegExp(pattern, "i")
+
+    const [activityLabels, itineraries] = await Promise.all([
+      Activity.find({ name: rx }).select("name").limit(12).lean(),
+      Itinerary.find({
+        $or: [{ title: rx }, { destination: rx }, { tags: rx }],
+      })
+        .select("title destination tags")
+        .limit(24)
+        .lean(),
+    ])
+
+    const suggestions = new Set()
+    for (const a of activityLabels) {
+      if (a.name) suggestions.add(a.name)
+    }
+    for (const it of itineraries) {
+      if (it.title && rx.test(it.title)) suggestions.add(it.title)
+      if (it.destination && rx.test(it.destination)) suggestions.add(it.destination)
+      for (const t of it.tags || []) {
+        if (t && rx.test(t)) suggestions.add(t)
+      }
+    }
+
+    const list = [...suggestions].slice(0, 8)
+    res.status(200).json({ success: true, data: list })
+  } catch (error) {
+    next(error)
+  }
+}
 
 // @desc    Get all itineraries
 // @route   GET /api/itineraries
 // @access  Public
 export const getItineraries = async (req, res, next) => {
   try {
-    const { destination, nights, tags, page = 1, limit = 10 } = req.query
+    const { destination, nights, tags, page = 1, limit = 10, search } = req.query
 
-    // Build query
-    const query = {}
+    const andParts = []
 
     if (destination) {
-      query.destination = { $regex: destination, $options: "i" }
+      andParts.push({ destination: { $regex: destination, $options: "i" } })
     }
 
     if (nights) {
-      query.numberOfNights = Number.parseInt(nights)
+      andParts.push({ numberOfNights: Number.parseInt(nights) })
     }
 
     if (tags) {
       const tagArray = tags.split(",")
-      query.tags = { $in: tagArray }
+      andParts.push({ tags: { $in: tagArray } })
     }
+
+    const searchTrimmed =
+      typeof search === "string" ? search.trim().slice(0, 120) : ""
+    if (searchTrimmed) {
+      const searchOr = await buildItinerarySearchOr(searchTrimmed)
+      andParts.push({ $or: searchOr })
+    }
+
+    const query =
+      andParts.length === 0 ? {} : andParts.length === 1 ? andParts[0] : { $and: andParts }
 
     // Execute query with pagination
     const skip = (page - 1) * limit
@@ -221,11 +312,142 @@ export const deleteItinerary = async (req, res, next) => {
     // Delete itinerary
     await Itinerary.findByIdAndDelete(req.params.id)
 
+    await User.updateMany(
+      { savedItineraries: req.params.id },
+      { $pull: { savedItineraries: req.params.id } },
+    )
+
     res.status(200).json({
       success: true,
       data: {},
     })
   } catch (error) {
     next(error)
+  }
+}
+
+// @desc    Save itinerary for current user
+// @route   POST /api/itineraries/:id/save
+// @access  Private
+export const saveItinerary = async (req, res) => {
+  try {
+    const itineraryIdParam = req.params.id?.trim()
+    if (!itineraryIdParam || !mongoose.Types.ObjectId.isValid(itineraryIdParam)) {
+      return res.status(400).json({ success: false, message: "Invalid itinerary id" })
+    }
+
+    const itinerary = await Itinerary.findById(itineraryIdParam)
+    if (!itinerary) {
+      return res.status(404).json({ success: false, message: "Itinerary not found" })
+    }
+
+    const user = await User.findById(req.user.id || req.user._id)
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" })
+    }
+
+    if (!Array.isArray(user.savedItineraries)) {
+      user.savedItineraries = []
+    }
+
+    const itineraryId = itinerary._id
+    // ObjectId refs: use .equals(), not Array.includes(string)
+    const alreadySaved = user.savedItineraries.some((id) => id.equals(itineraryId))
+    if (!alreadySaved) {
+      user.savedItineraries.push(itineraryId)
+      await user.save()
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Itinerary saved",
+      saved: true,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error saving itinerary",
+    })
+  }
+}
+
+// @desc    Remove itinerary from saved list
+// @route   DELETE /api/itineraries/:id/save
+// @access  Private
+export const unsaveItineraryForUser = async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid itinerary id" })
+    }
+
+    const user = await User.findById(req.user.id || req.user._id)
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" })
+    }
+
+    const targetId = new mongoose.Types.ObjectId(req.params.id)
+    const list = Array.isArray(user.savedItineraries) ? user.savedItineraries : []
+    user.savedItineraries = list.filter((x) => !x.equals(targetId))
+    await user.save()
+
+    res.status(200).json({
+      success: true,
+      message: "Removed from saved",
+      saved: false,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+// @desc    Check if itinerary is saved by current user
+// @route   GET /api/itineraries/:id/saved
+// @access  Private
+export const checkItinerarySaved = async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid itinerary id" })
+    }
+
+    const user = await User.findById(req.user.id || req.user._id).select("savedItineraries")
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" })
+    }
+
+    const targetId = new mongoose.Types.ObjectId(req.params.id)
+    const list = Array.isArray(user.savedItineraries) ? user.savedItineraries : []
+    const saved = list.some((x) => x.equals(targetId))
+
+    res.status(200).json({
+      success: true,
+      saved,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+// @desc    List current user's saved itineraries
+// @route   GET /api/itineraries/saved | GET /api/itineraries/saved/mine
+// @access  Private
+export const getSavedItineraries = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user._id).populate("savedItineraries")
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" })
+    }
+
+    const data = (user.savedItineraries || []).filter((doc) => doc != null && doc._id)
+
+    res.status(200).json({
+      success: true,
+      data,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error loading saved itineraries",
+    })
   }
 }

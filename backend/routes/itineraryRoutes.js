@@ -6,7 +6,13 @@ import {
   createItinerary,
   updateItinerary,
   deleteItinerary,
+  getSearchSuggestions,
+  saveItinerary,
+  unsaveItineraryForUser,
+  checkItinerarySaved,
+  getSavedItineraries,
 } from "../controllers/itineraryController.js"
+import { protect } from "../middlewares/authMiddleware.js"
 
 const router = express.Router()
 
@@ -21,8 +27,15 @@ const validateItinerary = [
   body("days.*.hotel.location").notEmpty().withMessage("Hotel location is required"),
 ]
 
-// Routes
+// Routes — static paths before /:id (avoid /:id catching "saved")
+router.get("/suggestions", getSearchSuggestions)
+router.get("/saved/mine", protect, getSavedItineraries)
+router.get("/saved", protect, getSavedItineraries)
 router.route("/").get(getItineraries).post(validateItinerary, createItinerary)
+
+router.post("/:id/save", protect, saveItinerary)
+router.delete("/:id/save", protect, unsaveItineraryForUser)
+router.get("/:id/saved", protect, checkItinerarySaved)
 
 router.route("/:id").get(getItinerary).put(updateItinerary).delete(deleteItinerary)
 

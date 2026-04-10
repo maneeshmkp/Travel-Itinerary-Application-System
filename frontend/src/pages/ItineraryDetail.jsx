@@ -17,14 +17,25 @@ import {
   Loader2,
 } from "lucide-react"
 import { itineraryAPI, recommendationAPI } from "../services/api"
+import { useAuth } from "../context/AuthContext"
+import { useToast } from "../hooks/useToast"
+import Toast from "../components/Toast"
+import DestinationHeroImage from "../components/DestinationHeroImage"
+
+const LOGIN_SAVE_MESSAGE = "Please log in to save itineraries"
 
 const ItineraryDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const { toasts, showSuccess, showError, removeToast } = useToast()
+
   const [itinerary, setItinerary] = useState(null)
   const [similarItineraries, setSimilarItineraries] = useState([])
   const [loading, setLoading] = useState(true)
   const [similarLoading, setSimilarLoading] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
 
   useEffect(() => {
     const fetchItinerary = async () => {
@@ -32,7 +43,6 @@ const ItineraryDetail = () => {
         const response = await itineraryAPI.getById(id)
         setItinerary(response.data.data)
 
-        // Fetch similar itineraries
         setSimilarLoading(true)
         try {
           const similarResponse = await recommendationAPI.getSimilar(id)
@@ -55,6 +65,27 @@ const ItineraryDetail = () => {
     }
   }, [id, navigate])
 
+  useEffect(() => {
+    if (!id || !isAuthenticated) {
+      setSaved(false)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await itineraryAPI.checkSaved(id)
+        if (!cancelled) setSaved(Boolean(res.data?.saved))
+      } catch {
+        if (!cancelled) setSaved(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, isAuthenticated])
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -73,6 +104,66 @@ const ItineraryDetail = () => {
       shopping: "🛍️",
     }
     return icons[category] || "📍"
+  }
+
+  const handleSaveClick = async () => {
+    if (!id) return
+
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: {
+          from: { pathname: `/itineraries/${id}`, search: "" },
+          message: LOGIN_SAVE_MESSAGE,
+        },
+      })
+      return
+    }
+
+    setSaveLoading(true)
+    try {
+      if (saved) {
+        await itineraryAPI.unsaveForUser(id)
+        setSaved(false)
+        showSuccess("Removed from saved")
+      } else {
+        await itineraryAPI.saveForUser(id)
+        setSaved(true)
+        showSuccess("Itinerary saved")
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Could not update saved itinerary."
+      showError(msg)
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
+  const handleShare = async () => {
+    if (!itinerary) return
+
+    const url = window.location.href
+    const shareData = {
+      title: itinerary.title,
+      text: "Check out this itinerary on TravelPlan",
+      url,
+    }
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData)
+        showSuccess("Shared successfully")
+        return
+      } catch (err) {
+        if (err?.name === "AbortError") return
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      showSuccess("Link copied to clipboard")
+    } catch {
+      showError("Could not copy the link. Copy it from the address bar.")
+    }
   }
 
   if (loading) {
@@ -106,10 +197,15 @@ const ItineraryDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {toasts.map((toast) => (
+        <Toast key={toast.id} type={toast.type} message={toast.message} onClose={() => removeToast(toast.id)} />
+      ))}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="flex items-center text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
@@ -167,11 +263,33 @@ const ItineraryDetail = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md font-medium transition-colors flex items-center justify-center">
-                    <Heart className="h-4 w-4 mr-2" />
-                    Save
+                  <button
+                    type="button"
+                    onClick={handleSaveClick}
+                    disabled={saveLoading}
+                    className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
+                      saved
+                        ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                    aria-pressed={saved}
+                  >
+                    {saveLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    ) : (
+                      <Heart
+                        className={`h-4 w-4 shrink-0 ${saved ? "fill-red-500 text-red-500 stroke-red-500" : "text-primary-foreground fill-transparent"}`}
+                      />
+                    )}
+                    <span>{saved ? "Saved" : "Save"}</span>
                   </button>
-                  <button className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-md font-medium transition-colors flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center shrink-0"
+                    title="Share itinerary"
+                    aria-label="Share itinerary"
+                  >
                     <Share2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -204,7 +322,7 @@ const ItineraryDetail = () => {
             <div className="space-y-6">
               <h2 className="font-heading font-semibold text-2xl text-foreground">Daily Itinerary</h2>
 
-              {itinerary.days.map((day, index) => (
+              {itinerary.days.map((day) => (
                 <div key={day._id} className="bg-card border border-border rounded-lg p-6">
                   <h3 className="font-heading font-semibold text-xl text-card-foreground mb-4 flex items-center">
                     <Calendar className="h-5 w-5 mr-2 text-primary" />
@@ -248,7 +366,7 @@ const ItineraryDetail = () => {
                         Activities
                       </h4>
                       <div className="space-y-4">
-                        {day.activities.map((activity, activityIndex) => (
+                        {day.activities.map((activity) => (
                           <div key={activity._id} className="bg-muted rounded-lg p-4">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center">
@@ -323,14 +441,24 @@ const ItineraryDetail = () => {
                     <Link
                       key={similar._id}
                       to={`/itineraries/${similar._id}`}
-                      className="block p-3 border border-border rounded-lg hover:bg-muted transition-colors"
+                      className="block border border-border rounded-lg overflow-hidden hover:bg-muted/50 transition-colors group"
                     >
-                      <h4 className="font-medium text-card-foreground mb-1 line-clamp-2">{similar.title}</h4>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        <span>{similar.destination}</span>
-                        <span className="mx-2">•</span>
-                        <span>{similar.numberOfNights} nights</span>
+                      <DestinationHeroImage
+                        destination={similar.destination}
+                        heightClass="h-28"
+                        roundedClass="rounded-t-lg"
+                        badge={
+                          <span className="absolute top-2 right-2 rounded-full bg-primary text-primary-foreground text-[10px] px-2 py-0.5 font-semibold shadow">
+                            {similar.numberOfNights} nights
+                          </span>
+                        }
+                      />
+                      <div className="p-3">
+                        <h4 className="font-medium text-card-foreground mb-1 line-clamp-2">{similar.title}</h4>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate">{similar.destination}</span>
+                        </div>
                       </div>
                     </Link>
                   ))}
