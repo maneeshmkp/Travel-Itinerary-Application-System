@@ -7,6 +7,13 @@ const daySchema = new mongoose.Schema(
       required: [true, "Day number is required"],
       min: 1,
     },
+    /** Optional short line for this day, e.g. "Jammu Arrival → Katra" (shown as Day N — …). */
+    dayLabel: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
+    },
     hotel: {
       name: {
         type: String,

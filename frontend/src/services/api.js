@@ -56,6 +56,11 @@ api.interceptors.response.use(
         error.response?.data?.message ||
         error.response?.data?.error ||
         "The requested resource was not found."
+    } else if ([400, 429, 502, 503, 504].includes(error.response?.status)) {
+      const m = error.response?.data?.message
+      if (typeof m === "string" && m.length > 0 && m.length < 800 && !m.trimStart().startsWith("{")) {
+        error.message = m
+      }
     } else if (error.response?.status === 500) {
       error.message = "Server error. Please try again later."
     } else if (!error.response) {
@@ -93,6 +98,15 @@ export const itineraryAPI = {
   checkSaved: (id) => api.get(`/itineraries/${id}/saved`),
   /** List saved trips (auth). Uses GET /api/itineraries/saved */
   getMySaved: () => api.get("/itineraries/saved"),
+}
+
+/** AI endpoints (require auth; longer timeout for model latency) */
+const aiTimeout = { timeout: 90000 }
+export const aiAPI = {
+  enrichDescriptions: (payload) => api.post("/ai/enrich-descriptions", payload, aiTimeout),
+  suggestDay: (payload) => api.post("/ai/suggest-day", payload, aiTimeout),
+  suggestHighlights: (payload) => api.post("/ai/suggest-highlights", payload, aiTimeout),
+  tripSummary: (payload) => api.post("/ai/trip-summary", payload, aiTimeout),
 }
 
 // Recommendation API calls

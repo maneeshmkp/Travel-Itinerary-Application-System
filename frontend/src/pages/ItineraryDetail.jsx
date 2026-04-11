@@ -15,14 +15,42 @@ import {
   Share2,
   Heart,
   Loader2,
+  Sparkles,
 } from "lucide-react"
-import { itineraryAPI, recommendationAPI } from "../services/api"
+import { itineraryAPI, recommendationAPI, aiAPI } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../hooks/useToast"
 import Toast from "../components/Toast"
 import DestinationHeroImage from "../components/DestinationHeroImage"
 
 const LOGIN_SAVE_MESSAGE = "Please log in to save itineraries"
+
+function itineraryToAiSnapshot(it) {
+  if (!it) return null
+  return {
+    title: it.title,
+    destination: it.destination,
+    numberOfNights: it.numberOfNights,
+    totalDays: it.totalDays,
+    description: it.description,
+    highlights: it.highlights || [],
+    tags: it.tags || [],
+    budget: it.budget,
+    days: (it.days || []).map((d) => ({
+      dayNumber: d.dayNumber,
+      dayLabel: d.dayLabel || "",
+      hotel: d.hotel,
+      activities: (d.activities || []).map((a) => ({
+        name: a.name,
+        description: a.description,
+        time: a.time,
+        location: a.location,
+        category: a.category,
+        duration: a.duration,
+      })),
+    })),
+  }
+}
 
 const ItineraryDetail = () => {
   const { id } = useParams()
@@ -36,6 +64,7 @@ const ItineraryDetail = () => {
   const [similarLoading, setSimilarLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false)
 
   useEffect(() => {
     const fetchItinerary = async () => {
@@ -166,6 +195,32 @@ const ItineraryDetail = () => {
     }
   }
 
+  const handleAiTripSummary = async () => {
+    if (!itinerary) return
+    setAiSummaryLoading(true)
+    try {
+      const snap = itineraryToAiSnapshot(itinerary)
+      const res = await aiAPI.tripSummary({ itinerary: snap })
+      const summary = res.data?.data?.summary
+      const demo = res.data?.demo
+      if (!summary) {
+        showError("No summary returned.")
+        return
+      }
+      const text = `${summary}\n\n${window.location.href}`
+      await navigator.clipboard.writeText(text)
+      showSuccess(
+        demo
+          ? "AI summary + link copied (demo). Set GEMINI_API_KEY or OPENAI_API_KEY on the server for richer copy."
+          : "AI summary and link copied to clipboard.",
+      )
+    } catch (err) {
+      showError(err.response?.data?.message || err.message || "Could not generate summary.")
+    } finally {
+      setAiSummaryLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -262,35 +317,50 @@ const ItineraryDetail = () => {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveClick}
+                      disabled={saveLoading}
+                      className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
+                        saved
+                          ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      }`}
+                      aria-pressed={saved}
+                    >
+                      {saveLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      ) : (
+                        <Heart
+                          className={`h-4 w-4 shrink-0 ${saved ? "fill-red-500 text-red-500 stroke-red-500" : "text-primary-foreground fill-transparent"}`}
+                        />
+                      )}
+                      <span>{saved ? "Saved" : "Save"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleShare}
+                      className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center shrink-0"
+                      title="Share itinerary"
+                      aria-label="Share itinerary"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={handleSaveClick}
-                    disabled={saveLoading}
-                    className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
-                      saved
-                        ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    }`}
-                    aria-pressed={saved}
+                    onClick={handleAiTripSummary}
+                    disabled={aiSummaryLoading}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary/25 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 disabled:opacity-60 transition-colors"
                   >
-                    {saveLoading ? (
+                    {aiSummaryLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                     ) : (
-                      <Heart
-                        className={`h-4 w-4 shrink-0 ${saved ? "fill-red-500 text-red-500 stroke-red-500" : "text-primary-foreground fill-transparent"}`}
-                      />
+                      <Sparkles className="h-4 w-4 shrink-0" />
                     )}
-                    <span>{saved ? "Saved" : "Save"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center shrink-0"
-                    title="Share itinerary"
-                    aria-label="Share itinerary"
-                  >
-                    <Share2 className="h-4 w-4" />
+                    AI trip summary (copy)
                   </button>
                 </div>
               </div>
@@ -324,9 +394,14 @@ const ItineraryDetail = () => {
 
               {itinerary.days.map((day) => (
                 <div key={day._id} className="bg-card border border-border rounded-lg p-6">
-                  <h3 className="font-heading font-semibold text-xl text-card-foreground mb-4 flex items-center">
-                    <Calendar className="h-5 w-5 mr-2 text-primary" />
-                    Day {day.dayNumber}
+                  <h3 className="font-heading font-semibold text-xl text-card-foreground mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="inline-flex items-center">
+                      <Calendar className="h-5 w-5 mr-2 text-primary shrink-0" />
+                      Day {day.dayNumber}
+                    </span>
+                    {(day.dayLabel || "").trim() ? (
+                      <span className="text-card-foreground font-medium">— {(day.dayLabel || "").trim()}</span>
+                    ) : null}
                   </h3>
 
                   {/* Hotel */}

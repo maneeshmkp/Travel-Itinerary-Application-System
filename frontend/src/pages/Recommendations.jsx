@@ -6,6 +6,7 @@ import { MapPin, Calendar, Tag, Compass, Loader2, Star } from "lucide-react"
 import { recommendationAPI } from "../services/api"
 import ItineraryCard from "../components/ItineraryCard"
 import DestinationHeroImage from "../components/DestinationHeroImage"
+import { ITINERARY_TAG_OPTIONS } from "../constants/itineraryTags"
 
 const Recommendations = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -21,7 +22,7 @@ const Recommendations = () => {
     budget: searchParams.get("budget") || "",
   })
 
-  const tagOptions = ["beach", "adventure", "cultural", "luxury", "budget", "family", "romantic", "solo"]
+  const tagOptions = ITINERARY_TAG_OPTIONS
 
   // Fetch destinations on component mount
   useEffect(() => {

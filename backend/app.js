@@ -6,6 +6,7 @@ import errorHandler from "./middlewares/errorHandler.js"
 import itineraryRoutes from "./routes/itineraryRoutes.js"
 import recommendationRoutes from "./routes/recommendationRoutes.js"
 import authRoutes from "./routes/authRoutes.js"
+import aiRoutes from "./routes/aiRoutes.js"
 
 // Load env vars
 dotenv.config() 
@@ -49,6 +50,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes)
 app.use("/api/itineraries", itineraryRoutes)
 app.use("/api/recommendations", recommendationRoutes)
+app.use("/api/ai", aiRoutes)
 
 // Unmatched API routes (must run before the global error handler)
 app.use((req, res) => {

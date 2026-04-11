@@ -9,6 +9,7 @@ import LoadingSpinner from "../components/LoadingSpinner"
 import ErrorMessage from "../components/ErrorMessage"
 import EmptyState from "../components/EmptyState"
 import { useDebouncedValue } from "../hooks/useDebouncedValue"
+import { ITINERARY_TAG_OPTIONS } from "../constants/itineraryTags"
 
 const Itineraries = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -33,7 +34,7 @@ const Itineraries = () => {
     pages: 0,
   })
 
-  const tagOptions = ["beach", "adventure", "cultural", "luxury", "budget", "family", "romantic", "solo"]
+  const tagOptions = ITINERARY_TAG_OPTIONS
 
   useEffect(() => {
     setInputValue(urlSearch)

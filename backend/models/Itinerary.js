@@ -48,7 +48,22 @@ const itinerarySchema = new mongoose.Schema(
     tags: [
       {
         type: String,
-        enum: ["beach", "adventure", "cultural", "luxury", "budget", "family", "romantic", "solo"],
+        enum: [
+          "beach",
+          "adventure",
+          "cultural",
+          "luxury",
+          "budget",
+          "family",
+          "romantic",
+          "solo",
+          "spiritual",
+          "mountain",
+          "nature",
+          "food",
+          "history",
+          "snowfall",
+        ],
       },
     ],
     isRecommended: {

@@ -14,6 +14,8 @@ import Login from "./pages/Login"
 import Signup from "./pages/Signup"
 import ForgotPassword from "./pages/ForgotPassword"
 import NotFound from "./pages/NotFound"
+import PrivacyPolicy from "./pages/PrivacyPolicy"
+import TermsOfService from "./pages/TermsOfService"
 import SearchBar from "./pages/SearchBar"
 
 function App() {
@@ -45,6 +47,8 @@ function App() {
                 }
               />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
               <Route
                 path="/create"
                 element={

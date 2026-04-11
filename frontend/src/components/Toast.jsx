@@ -39,7 +39,7 @@ const Toast = ({ type = "success", message, onClose, duration = 5000 }) => {
       } ${isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`}
     >
       <Icon className="h-5 w-5 flex-shrink-0" />
-      <span className="font-medium">{message}</span>
+      <span className="font-medium max-w-md text-left text-sm leading-snug break-words">{message}</span>
       <button onClick={handleClose} className="ml-2 hover:opacity-80 transition-opacity">
         <X className="h-4 w-4" />
       </button>

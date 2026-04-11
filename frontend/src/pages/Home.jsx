@@ -8,6 +8,9 @@ import { useAuth } from "../context/AuthContext"
 import LoadingSpinner from "../components/LoadingSpinner"
 import ErrorMessage from "../components/ErrorMessage"
 import DestinationHeroImage from "../components/DestinationHeroImage"
+import MemoriesMadeSection from "../components/MemoriesMadeSection"
+import TestimonialsSection from "../components/TestimonialsSection"
+import FaqSection from "../components/FaqSection"
 
 const GUARD_MESSAGE = "Please login to access this feature"
 
@@ -209,6 +212,8 @@ const Home = () => {
         </div>
       </section>
 
+      <MemoriesMadeSection />
+
       {/* Popular Destinations — full-bleed photo (img + object-cover avoids blurry CSS-bg upscaling) */}
       <section className="relative py-24 md:py-32 overflow-hidden isolate">
         <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -318,6 +323,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <TestimonialsSection />
+      <FaqSection />
 
       {/* CTA Section — photo + dark scrim + primary tint (map photo is very light; white text needs contrast) */}
       <section className="relative py-24 md:py-32 overflow-hidden min-h-[22rem] md:min-h-[26rem] flex items-center isolate">

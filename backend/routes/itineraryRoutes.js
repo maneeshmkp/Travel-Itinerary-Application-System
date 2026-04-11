@@ -25,6 +25,7 @@ const validateItinerary = [
   body("days.*.dayNumber").isInt({ min: 1 }).withMessage("Day number must be a positive integer"),
   body("days.*.hotel.name").notEmpty().withMessage("Hotel name is required"),
   body("days.*.hotel.location").notEmpty().withMessage("Hotel location is required"),
+  body("days.*.dayLabel").optional().isString().isLength({ max: 200 }).withMessage("Day label must be at most 200 characters"),
 ]
 
 // Routes — static paths before /:id (avoid /:id catching "saved")

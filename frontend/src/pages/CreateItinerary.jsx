@@ -2,15 +2,75 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Minus, Calendar, Hotel, Activity, Save, ArrowLeft } from "lucide-react"
-import { itineraryAPI } from "../services/api"
+import { Plus, Minus, Calendar, Hotel, Activity, Save, ArrowLeft, Sparkles, Loader2 } from "lucide-react"
+import { itineraryAPI, aiAPI } from "../services/api"
 import { useToast } from "../hooks/useToast"
 import Toast from "../components/Toast"
+import { ITINERARY_TAG_OPTIONS } from "../constants/itineraryTags"
+
+function manualHighlightsEmpty(highlights) {
+  return !highlights?.some((h) => String(h).trim())
+}
+
+function buildItineraryAiPayload(formData) {
+  return {
+    title: formData.title,
+    destination: formData.destination,
+    tags: formData.tags,
+    highlights: (formData.highlights || []).filter((h) => String(h).trim()),
+    days: formData.days.map((d) => ({
+      dayNumber: d.dayNumber,
+      dayLabel: d.dayLabel || "",
+      hotel: d.hotel,
+      activities: d.activities.map((a) => ({
+        name: a.name,
+        description: a.description,
+        time: a.time,
+        location: a.location,
+        category: a.category,
+      })),
+    })),
+  }
+}
+
+/** When AI or network is unavailable, derive simple bullets from activity titles. */
+function localFallbackHighlights(formData) {
+  const dest = String(formData.destination || "").trim() || "your destination"
+  const out = []
+  for (const day of formData.days || []) {
+    for (const a of day.activities || []) {
+      const name = String(a.name || "").trim()
+      if (!name) continue
+      const loc = String(a.location || "").trim()
+      out.push((loc ? `${name} — ${loc}` : name).slice(0, 95))
+      if (out.length >= 8) break
+    }
+    if (out.length >= 8) break
+  }
+  const uniq = [...new Set(out)]
+  if (uniq.length >= 3) return uniq.slice(0, 6)
+  if (uniq.length > 0) {
+    const extras = [
+      `More to discover in ${dest}`,
+      "Dining, culture & neighborhood walks",
+      "Thoughtful pacing across your stay",
+    ]
+    let i = 0
+    while (uniq.length < 3) {
+      uniq.push(extras[i % extras.length])
+      i += 1
+    }
+    return uniq.slice(0, 6)
+  }
+  return [`Explore ${dest}`, "Curated stops across your days", "Culture, food & scenery"]
+}
 
 const CreateItinerary = () => {
   const navigate = useNavigate()
   const { toasts, showSuccess, showError, removeToast } = useToast()
   const [loading, setLoading] = useState(false)
+  /** null | 'enrich' | number (dayIndex) for suggest-day */
+  const [aiBusy, setAiBusy] = useState(null)
   const [formData, setFormData] = useState({
     title: "",
     destination: "",
@@ -27,6 +87,7 @@ const CreateItinerary = () => {
     days: [
       {
         dayNumber: 1,
+        dayLabel: "",
         hotel: {
           name: "",
           location: "",
@@ -50,7 +111,7 @@ const CreateItinerary = () => {
     ],
   })
 
-  const tagOptions = ["beach", "adventure", "cultural", "luxury", "budget", "family", "romantic", "solo"]
+  const tagOptions = ITINERARY_TAG_OPTIONS
   const activityCategories = ["sightseeing", "adventure", "cultural", "relaxation", "dining", "shopping"]
 
   const handleInputChange = (field, value) => {
@@ -157,6 +218,7 @@ const CreateItinerary = () => {
         ...prev.days,
         {
           dayNumber: newDayNumber,
+          dayLabel: "",
           hotel: {
             name: "",
             location: "",
@@ -224,11 +286,27 @@ const CreateItinerary = () => {
         }
       }
 
-      // Filter out empty highlights
+      const totalDays = formData.days.length
+
+      let finalHighlights = formData.highlights.filter((h) => h.trim() !== "")
+      if (finalHighlights.length === 0) {
+        try {
+          const res = await aiAPI.suggestHighlights({ itinerary: buildItineraryAiPayload(formData) })
+          const list = res.data?.data?.highlights
+          if (Array.isArray(list) && list.some((x) => String(x).trim())) {
+            finalHighlights = list.map((h) => String(h).trim()).filter(Boolean)
+          } else {
+            finalHighlights = localFallbackHighlights(formData)
+          }
+        } catch {
+          finalHighlights = localFallbackHighlights(formData)
+        }
+      }
+
       const cleanedData = {
         ...formData,
         totalDays,
-        highlights: formData.highlights.filter((h) => h.trim() !== ""),
+        highlights: finalHighlights,
         budget: {
           min: Number(formData.budget.min) || undefined,
           max: Number(formData.budget.max) || undefined,
@@ -249,6 +327,150 @@ const CreateItinerary = () => {
       showError(errorMessage)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAiEnrichDescriptions = async () => {
+    if (!formData.destination.trim()) {
+      showError("Add a destination before using AI enrich.")
+      return
+    }
+    setAiBusy("enrich")
+    try {
+      const itineraryPayload = {
+        title: formData.title,
+        destination: formData.destination,
+        highlights: formData.highlights.filter((h) => h.trim()),
+        tags: formData.tags,
+        days: formData.days.map((d) => ({
+          dayNumber: d.dayNumber,
+          dayLabel: d.dayLabel || "",
+          hotel: d.hotel,
+          activities: d.activities.map((a) => ({
+            name: a.name,
+            description: a.description,
+            time: a.time,
+            location: a.location,
+            category: a.category,
+          })),
+        })),
+      }
+      const res = await aiAPI.enrichDescriptions({ itinerary: itineraryPayload })
+      const { description, days } = res.data.data
+      const demo = res.data.demo
+
+      const nextDays = formData.days.map((day, di) => {
+        const patch = days?.find((x) => x.dayIndex === di)
+        if (!patch?.activities) return day
+        const activities = day.activities.map((act, ai) => {
+          const p = patch.activities.find((x) => x.activityIndex === ai)
+          if (p?.description) return { ...act, description: p.description }
+          return act
+        })
+        return { ...day, activities }
+      })
+      const nextDescription = description || formData.description
+
+      let nextHighlights = formData.highlights
+      if (manualHighlightsEmpty(formData.highlights)) {
+        const snapshot = { ...formData, days: nextDays, description: nextDescription }
+        try {
+          const hr = await aiAPI.suggestHighlights({ itinerary: buildItineraryAiPayload(snapshot) })
+          const list = hr.data?.data?.highlights
+          if (Array.isArray(list) && list.some((x) => String(x).trim())) {
+            nextHighlights = list.map((h) => String(h).trim()).filter(Boolean)
+          } else {
+            nextHighlights = localFallbackHighlights(snapshot)
+          }
+        } catch {
+          nextHighlights = localFallbackHighlights(snapshot)
+        }
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        description: nextDescription,
+        days: nextDays,
+        highlights: manualHighlightsEmpty(prev.highlights) ? nextHighlights : prev.highlights,
+      }))
+      showSuccess(demo ? "Descriptions filled (demo mode — add GEMINI_API_KEY or OPENAI_API_KEY for live AI)." : "Descriptions updated with AI.")
+    } catch (err) {
+      showError(err.response?.data?.message || err.message || "AI request failed.")
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  const handleAiSuggestDay = async (dayIndex) => {
+    const day = formData.days[dayIndex]
+    if (!formData.destination.trim()) {
+      showError("Add a destination first.")
+      return
+    }
+    if (!day.hotel?.name?.trim() || !day.hotel?.location?.trim()) {
+      showError(`Fill hotel name and area for Day ${day.dayNumber} before AI suggestions.`)
+      return
+    }
+    setAiBusy(dayIndex)
+    try {
+      const res = await aiAPI.suggestDay({
+        destination: formData.destination.trim(),
+        dayNumber: day.dayNumber,
+        dayLabel: (day.dayLabel || "").trim(),
+        hotel: day.hotel,
+        tags: formData.tags,
+        existingActivities: day.activities,
+      })
+      const list = res.data.data?.activities || []
+      const allowed = ["sightseeing", "adventure", "cultural", "relaxation", "dining", "shopping"]
+      const normalized = list.map((a) => ({
+        name: String(a.name || "Activity").slice(0, 120),
+        description: String(a.description || "").slice(0, 800),
+        time: String(a.time || "10:00"),
+        location: String(a.location || formData.destination).slice(0, 200),
+        category: allowed.includes(a.category) ? a.category : "sightseeing",
+        duration: String(a.duration || "2 hours").slice(0, 40),
+      }))
+      if (normalized.length === 0) {
+        showError("AI returned no activities. Try again.")
+        return
+      }
+
+      const snapDays = formData.days.map((d, i) => (i === dayIndex ? { ...d, activities: normalized } : d))
+      let newHighlights = formData.highlights
+      if (manualHighlightsEmpty(formData.highlights)) {
+        const snapshot = { ...formData, days: snapDays }
+        try {
+          const hr = await aiAPI.suggestHighlights({ itinerary: buildItineraryAiPayload(snapshot) })
+          const list = hr.data?.data?.highlights
+          if (Array.isArray(list) && list.some((x) => String(x).trim())) {
+            newHighlights = list.map((h) => String(h).trim()).filter(Boolean)
+          } else {
+            newHighlights = localFallbackHighlights(snapshot)
+          }
+        } catch {
+          newHighlights = localFallbackHighlights(snapshot)
+        }
+      }
+
+      setFormData((prev) => {
+        const days = [...prev.days]
+        days[dayIndex] = { ...days[dayIndex], activities: normalized }
+        return {
+          ...prev,
+          days,
+          highlights: manualHighlightsEmpty(prev.highlights) ? newHighlights : prev.highlights,
+        }
+      })
+      showSuccess(
+        res.data.demo
+          ? "Sample activities applied (demo). Set GEMINI_API_KEY or OPENAI_API_KEY for tailored suggestions."
+          : "Activities updated from AI.",
+      )
+    } catch (err) {
+      showError(err.response?.data?.message || err.message || "AI request failed.")
+    } finally {
+      setAiBusy(null)
     }
   }
 
@@ -303,13 +525,28 @@ const CreateItinerary = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="form-label">Description</label>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <label className="form-label mb-0">Description</label>
+                <button
+                  type="button"
+                  onClick={handleAiEnrichDescriptions}
+                  disabled={aiBusy !== null}
+                  className="inline-flex items-center justify-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors shrink-0"
+                >
+                  {aiBusy === "enrich" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  AI: Enrich descriptions
+                </button>
+              </div>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
                 rows={3}
                 className="form-textarea min-h-[88px]"
-                placeholder="Describe your itinerary..."
+                placeholder="Describe your itinerary… or use AI to draft copy from your days."
               />
             </div>
 
@@ -419,20 +656,57 @@ const CreateItinerary = () => {
 
             {formData.days.map((day, dayIndex) => (
               <div key={dayIndex} className="form-card space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-heading font-semibold text-lg text-gray-900 flex items-center">
-                    <Calendar className="h-5 w-5 mr-2 text-primary" />
-                    Day {day.dayNumber}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="font-heading font-semibold text-lg text-gray-900 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="inline-flex items-center">
+                      <Calendar className="h-5 w-5 mr-2 text-primary shrink-0" />
+                      Day {day.dayNumber}
+                    </span>
+                    {(day.dayLabel || "").trim() ? (
+                      <span className="text-gray-700 font-medium">— {(day.dayLabel || "").trim()}</span>
+                    ) : null}
                   </h3>
-                  {formData.days.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
                     <button
                       type="button"
-                      onClick={() => removeDay(dayIndex)}
-                      className="text-destructive hover:text-destructive/80 p-2"
+                      onClick={() => handleAiSuggestDay(dayIndex)}
+                      disabled={aiBusy !== null}
+                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg border border-secondary/40 bg-secondary/10 text-secondary hover:bg-secondary/15 disabled:opacity-50 transition-colors"
                     >
-                      <Minus className="h-4 w-4" />
+                      {aiBusy === dayIndex ? (
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 shrink-0" />
+                      )}
+                      AI: Suggest activities
                     </button>
-                  )}
+                    {formData.days.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeDay(dayIndex)}
+                        className="text-destructive hover:text-destructive/80 p-2"
+                        aria-label={`Remove day ${day.dayNumber}`}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="form-label">Day route / theme (optional)</label>
+                  <input
+                    type="text"
+                    value={day.dayLabel ?? ""}
+                    onChange={(e) => handleDayChange(dayIndex, "dayLabel", e.target.value)}
+                    className="form-input"
+                    placeholder="e.g. Jammu Arrival → Katra, or Vaishno Devi Darshan → Srinagar"
+                    maxLength={200}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Shown as <span className="font-medium">Day {day.dayNumber} — …</span>. AI uses this when you click
+                    Suggest activities.
+                  </p>
                 </div>
 
                 {/* Hotel */}

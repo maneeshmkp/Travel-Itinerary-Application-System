@@ -85,6 +85,31 @@
   }
 }
 
+/* Memories 3D cover-flow: flat row when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .memories-cover-stage {
+    perspective: none !important;
+  }
+  .memories-cover-track {
+    position: relative !important;
+    display: flex !important;
+    height: auto !important;
+    min-height: 0 !important;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.25rem;
+    padding-block: 0.5rem;
+    transform: none !important;
+  }
+  .memories-cover-item {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+}
+
 /* 3. CSS Variables - Professional Blue & Teal Theme */
 :root {
   --background: #ffffff;
