@@ -21,6 +21,6 @@ Thumbs.db
 
 # Cache / temporary files
 .cache/
-
+backend/SETUP.md
 backend/.env
 backend/SETUP.md
