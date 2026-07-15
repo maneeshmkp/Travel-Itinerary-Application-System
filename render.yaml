@@ -1,4 +1,6 @@
-# Optional Render Blueprint (connect repo in Render dashboard)
+# Render Blueprint — Backend API
+# Dashboard: New → Blueprint → connect
+# https://github.com/maneeshmkp/Travel-Itinerary-Application-System
 # https://render.com/docs/blueprint-spec
 
 services:
@@ -6,32 +8,31 @@ services:
     name: travelplan-api
     runtime: node
     plan: starter
+    region: oregon
     rootDir: backend
-    # Install all deps needed at runtime (lockfile-driven). Avoid --omit=dev pitfalls with native modules.
-    buildCommand: npm ci
+    buildCommand: npm ci --omit=dev
     startCommand: node server.js
-    # Liveness only — full /api/health returns 503 when Mongo is down and would fail deploys.
     healthCheckPath: /api/health/live
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 5000
       - key: TRUST_PROXY
         value: "true"
+      - key: LOG_LEVEL
+        value: info
+      - key: STORAGE_PROVIDER
+        value: s3
+      # Render injects PORT automatically — do not hardcode
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: FRONTEND_URL
         sync: false
       - key: FRONTEND_URLS
         sync: false
       - key: REDIS_URL
         sync: false
-      # Default local uploads; set STORAGE_PROVIDER=s3 + AWS_* when S3 is ready
-      - key: STORAGE_PROVIDER
-        value: local
       - key: AWS_S3_BUCKET
         sync: false
       - key: AWS_REGION
@@ -40,7 +41,11 @@ services:
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
+      - key: AWS_S3_PREFIX
+        value: travel-documents
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: ADMIN_EMAILS
         sync: false

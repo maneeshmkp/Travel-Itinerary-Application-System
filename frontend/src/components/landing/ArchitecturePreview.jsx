@@ -1,10 +1,11 @@
 "use client"
 
 /**
- * ArchitecturePreview — lightweight HTML/CSS diagram (no app logic).
+ * ArchitecturePreview — lightweight HTML/CSS diagram (no app logic) linking to ARCHITECTURE.md on GitHub.
  */
 import { ExternalLink } from "lucide-react"
 import { LandingSection, GlassCard } from "./LandingSection"
+import { GITHUB_URL } from "../../constants/landing"
 
 const NODES = [
   { id: "spa", label: "React SPA", sub: "Vite · PWA", x: "8%", y: "28%" },
@@ -14,10 +15,6 @@ const NODES = [
   { id: "s3", label: "AWS S3", sub: "Document vault", x: "70%", y: "78%" },
   { id: "ext", label: "AI · Maps · Weather", sub: "Providers", x: "38%", y: "72%" },
 ]
-
-function swaggerOrigin() {
-  return (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "")
-}
 
 export default function ArchitecturePreview() {
   return (
@@ -49,14 +46,14 @@ export default function ArchitecturePreview() {
           ))}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-5 py-4">
-          <p className="text-sm text-muted-foreground">Preview only—inspect live routes via OpenAPI.</p>
+          <p className="text-sm text-muted-foreground">Preview only—full Mermaid diagrams live in the repo.</p>
           <a
-            href={`${swaggerOrigin()}/docs`}
+            href={`${GITHUB_URL}/blob/main/ARCHITECTURE.md`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
           >
-            Open Swagger docs
+            Open ARCHITECTURE.md
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </a>
         </div>

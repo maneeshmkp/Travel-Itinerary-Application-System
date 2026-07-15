@@ -2,7 +2,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import { VitePWA } from "vite-plugin-pwa"
 
-export default defineConfig({
+export default   defineConfig({
   plugins: [
     react(),
     VitePWA({
@@ -60,10 +60,3 @@ export default defineConfig({
     strictPort: true,
   },
 })
-
-// Vercel injects VERCEL=1. Production SPA must know the Render API origin at build time.
-if (process.env.VERCEL && !process.env.VITE_API_URL?.trim()) {
-  console.warn(
-    "[TravelPlan] VITE_API_URL is not set on Vercel. Set it to https://<your-render-host>/api in Project → Settings → Environment Variables, then redeploy.",
-  )
-}

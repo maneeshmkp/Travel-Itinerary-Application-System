@@ -175,7 +175,7 @@ Supporting integrations: OpenWeather, SerpAPI, Railkit, SeatSeller, Nodemailer, 
 
 ## 4. Architecture Overview
 
-See the Architecture section of this README and the live Swagger UI at `/docs` on the API for system structure.
+See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for ten Mermaid diagrams (system, backend, auth, AI, Redis, BullMQ, S3, Socket.IO, events, deployment).
 
 ```text
 ┌─────────────────┐     HTTPS / WS      ┌──────────────────────────┐
@@ -460,27 +460,21 @@ One-command local/staging stack (frontend nginx, backend, MongoDB, Redis). See [
 
 ### Frontend — Vercel
 
-- Prefer **Root Directory = `frontend`** in the Vercel project, *or* leave root empty and use the repo-root `vercel.json`
-- Set Environment Variables (Production):
-  - `VITE_API_URL` = `https://<your-render-service>.onrender.com/api`
-  - `VITE_SOCKET_URL` = `https://<your-render-service>.onrender.com`
-  - optional: `VITE_GOOGLE_MAPS_API_KEY`
-- Redeploy after changing Vite env vars (they are baked at build time)
+- Root config: `vercel.json`
+- Build the Vite app; set `VITE_API_URL` to your public API (or same-origin proxy)
 - Restrict Google Maps HTTP referrers to your production domain
 
 ### Backend — Render
 
-- Root Directory: `backend`
-- Build: `npm ci` · Start: `node server.js`
-- Health check path: **`/api/health/live`** (do not use `/api/health` — it returns 503 when Mongo is down)
-- Required env: `MONGO_URI`, `JWT_SECRET`, `FRONTEND_URL` (your Vercel URL), `TRUST_PROXY=true`
-- Optional: `REDIS_URL`, `STORAGE_PROVIDER=s3` + AWS keys, AI / weather keys
-- Attach Redis when you need queues / shared rate limits at scale
+- Blueprint / service hints: `render.yaml`
+- Set production env from `env/backend.production.example.env`
+- Attach Redis (Render Redis or managed) when using queues / rate limits at scale
+- Enable `TRUST_PROXY=true` and production `FRONTEND_URL(S)`
 
 ### Database — MongoDB Atlas
 
 - Create a cluster and database user
-- Whitelist Render egress IPs (or `0.0.0.0/0` only for controlled demos)
+- Whitelist Render / Docker egress IPs (or `0.0.0.0/0` only for controlled demos)
 - Set `MONGO_URI` to the Atlas SRV connection string
 
 ### Documents — AWS S3
@@ -490,13 +484,13 @@ One-command local/staging stack (frontend nginx, backend, MongoDB, Redis). See [
 3. Set `STORAGE_PROVIDER=s3` and AWS credentials  
 4. Keep `DOCUMENT_SIGNING_SECRET` strong for app-level download tokens  
 
-Copy env templates from `env/*.example.env` locally. Never commit real `.env` files.
+More detail: [DEPLOYMENT.md](./DEPLOYMENT.md), [DOCUMENTS.md](./DOCUMENTS.md).
 
 ---
 
 ## 11. Performance Optimizations
 
-Full engineering report (indexes, load tests, Lighthouse, before/after) is maintained locally under `PERFORMANCE.md` (not published to GitHub).
+Full engineering report (indexes, load tests, Lighthouse, before/after): **[PERFORMANCE.md](./PERFORMANCE.md)**.
 
 | Technique | How TravelPlan uses it |
 |-----------|-------------------------|
@@ -530,7 +524,7 @@ cd backend && npm run perf:explain && npm run perf:load
 | **Tenancy** | Tenant resolution + mongoose scope plugin (isolation) |
 | **Audit** | Failed logins, permission denials, admin actions, uploads |
 
-Deep dive docs (`SECURITY.md`, `RBAC.md`, `MULTITENANCY.md`) are kept local and are not pushed to GitHub.
+Deep dive: [SECURITY.md](./SECURITY.md) · [RBAC.md](./RBAC.md) · [MULTITENANCY.md](./MULTITENANCY.md).
 
 ---
 
@@ -566,7 +560,7 @@ cd frontend && npm test
 cd backend && npm run docs:validate
 ```
 
-Playwright: `npm run test:e2e` from the repo root (see `playwright.config.mjs`).
+See also [TESTING.md](./TESTING.md).
 
 ---
 
@@ -578,7 +572,7 @@ GitHub Actions under `.github/workflows/`:
 |----------|---------|
 | `ci.yml` | Install, Prettier, lint, backend/frontend tests, build on push/PR |
 | `e2e.yml` | Playwright end-to-end |
-| `deploy.yml` | Deployment pipeline hooks (set Vercel/Render secrets in GitHub Actions) |
+| `deploy.yml` | Deployment pipeline hooks (configure secrets per [SECRETS.md](./.github/SECRETS.md)) |
 
 Typical quality gate: **format → lint → unit tests → build → (optional) E2E**.
 
@@ -618,6 +612,23 @@ MIT License — free to use, modify, and distribute, with attribution and no war
 ```
 
 If a `LICENSE` file is not yet present in the repository root, add the standard MIT text before publishing publicly so GitHub can detect the license automatically.
+
+---
+
+## Related documentation
+
+| Doc | Topic |
+|-----|--------|
+| [SECURITY.md](./SECURITY.md) | Auth flow, headers, rate limits, S3 |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Mermaid system diagrams |
+| [RBAC.md](./RBAC.md) | Roles & permissions |
+| [MULTITENANCY.md](./MULTITENANCY.md) | Tenants, isolation, plans |
+| [JOBS.md](./JOBS.md) | BullMQ queues & workers |
+| [EVENTS.md](./EVENTS.md) | Domain Event Bus |
+| [MONITORING.md](./MONITORING.md) | Health & metrics |
+| [DOCUMENTS.md](./DOCUMENTS.md) | Document Vault |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Hosting notes |
+| [API.md](./API.md) | API companion notes |
 
 ---
 

@@ -17,10 +17,10 @@ const productLinks = [
 ]
 
 const resourceLinks = [
-  { href: GITHUB_URL, label: "GitHub repository" },
-  { href: GITHUB_URL + "#readme", label: "Setup guide (README)" },
-  { to: "/#docs", label: "API documentation" },
-  { to: "/#architecture", label: "Architecture" },
+  { href: GITHUB_URL + "/blob/main/docs/engineering/ENGINEERING.md", label: "Engineering Handbook" },
+  { href: GITHUB_URL + "/blob/main/ARCHITECTURE.md", label: "Architecture" },
+  { href: GITHUB_URL + "/blob/main/SECURITY.md", label: "Security" },
+  { href: GITHUB_URL + "/blob/main/TESTING.md", label: "Testing" },
 ]
 
 const legalLinks = [
@@ -110,13 +110,9 @@ const Footer = () => {
             <FooterSectionTitle>Resources</FooterSectionTitle>
             <nav aria-label="Resources">
               <ul>
-                {resourceLinks.map((link) => (
-                  <li key={link.label}>
-                    {link.to ? (
-                      <FooterLink to={link.to}>{link.label}</FooterLink>
-                    ) : (
-                      <FooterExtLink href={link.href}>{link.label}</FooterExtLink>
-                    )}
+                {resourceLinks.map(({ href, label }) => (
+                  <li key={label}>
+                    <FooterExtLink href={href}>{label}</FooterExtLink>
                   </li>
                 ))}
               </ul>

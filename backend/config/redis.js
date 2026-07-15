@@ -17,12 +17,32 @@ let lastErrorAt = 0
 let lastReconnectLogAt = 0
 let ready = false
 
+/**
+ * Resolved Redis URL, or null when unset / not usable in this environment.
+ * Loopback URLs from a local .env must not be used on Render (no local Redis).
+ */
+export function resolveRedisUrl() {
+  const raw = (process.env.REDIS_URL || process.env.REDIS_URI || "").trim()
+  if (!raw) return null
+
+  const onRender = process.env.RENDER === "true" || Boolean(process.env.RENDER_SERVICE_ID)
+  const isProd = process.env.NODE_ENV === "production"
+  if ((onRender || isProd) && /:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/i.test(raw)) {
+    logRedis.warn(
+      "Ignoring REDIS_URL pointing at localhost in cloud — remove it or use Upstash/Render Redis",
+    )
+    return null
+  }
+  return raw
+}
+
 function redisUrl() {
-  return (process.env.REDIS_URL || process.env.REDIS_URI || "").trim() || null
+  return resolveRedisUrl()
 }
 
 function retryStrategy(times) {
-  // Back off harder when Redis is down to avoid log/CPU storms
+  // Back off harder when Redis is down to avoid log/CPU storms; stop after long failure
+  if (times > 40) return null
   const delay = Math.min(times * 500, 15_000)
   if (times <= 2 || times % 20 === 0) {
     logRedis.warn("Redis reconnect attempt", { times, delayMs: delay })

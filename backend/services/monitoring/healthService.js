@@ -55,44 +55,15 @@ function cpuStats() {
 async function checkMongo() {
   const configured = Boolean(process.env.MONGO_URI || process.env.MONGODB_URI)
   const state = mongoose.connection.readyState
-  // 0=disconnected 1=connected 2=connecting 3=disconnecting
-  if (!configured) {
-    return {
-      name: "MongoDB",
-      key: "mongodb",
-      configured: false,
-      status: "unhealthy",
-      color: "red",
-      detail: "MONGO_URI not set",
-    }
-  }
-  if (state === 1) {
-    return {
-      name: "MongoDB",
-      key: "mongodb",
-      configured: true,
-      status: "healthy",
-      color: "green",
-      detail: "connected",
-    }
-  }
-  if (state === 2) {
-    return {
-      name: "MongoDB",
-      key: "mongodb",
-      configured: true,
-      status: "degraded",
-      color: "yellow",
-      detail: "connecting",
-    }
-  }
+  // 1 = connected
+  const ok = state === 1
   return {
     name: "MongoDB",
     key: "mongodb",
-    configured: true,
-    status: "unhealthy",
-    color: "red",
-    detail: `readyState=${state}`,
+    configured,
+    status: statusFrom(ok, configured),
+    color: colorFrom(statusFrom(ok, configured)),
+    detail: ok ? "connected" : `readyState=${state}`,
   }
 }
 
@@ -167,7 +138,7 @@ async function checkRedis() {
       appHitRatio: cache.hitRatio,
       invalidations: cache.invalidations,
       rateLimited: cache.rateLimited,
-      ttlPolicyNote: "Application TTLs enforced by RedisKeys helpers",
+      ttlPolicyNote: "See REDIS.md TTL policy",
       cache,
     }
   } catch (err) {

@@ -1,6 +1,5 @@
 import http from "http"
 import app from "./app.js"
-import connectDB from "./config/db.js"
 import { initSocket } from "./socket/index.js"
 import { startNotificationScheduler } from "./utils/notificationScheduler.js"
 import { startFlightTrackingPoller } from "./services/flightTracking/flightPollingService.js"
@@ -20,9 +19,6 @@ const PORT = process.env.PORT || 5000
 
 initRedis()
 bootstrapDomainEvents()
-
-/** Connect Mongo before binding the port so Render health probes never race cold starts. */
-await connectDB()
 
 const httpServer = http.createServer(app)
 initSocket(httpServer)

@@ -152,21 +152,31 @@ export const CLOUD_ITEMS = [
 ]
 
 export const DOC_LINKS = [
-  { title: "GitHub", description: "Source code and releases", href: GITHUB_URL, external: true },
+  { title: "README", description: "Product overview, install, and deploy", href: GITHUB_URL + "#readme", external: true },
   { title: "Swagger", description: "Interactive OpenAPI explorer", href: "/docs", external: true, apiRelative: true },
   {
-    title: "OpenAPI JSON",
-    description: "Machine-readable API specification",
-    href: "/docs/openapi.json",
+    title: "Engineering Handbook",
+    description: "Internal developer portal",
+    href: GITHUB_URL + "/blob/main/docs/engineering/ENGINEERING.md",
     external: true,
-    apiRelative: true,
   },
   {
-    title: "Live health",
-    description: "API liveness probe",
-    href: "/api/health/live",
+    title: "Architecture",
+    description: "Mermaid diagrams and system design",
+    href: GITHUB_URL + "/blob/main/ARCHITECTURE.md",
     external: true,
-    apiRelative: true,
+  },
+  {
+    title: "Testing",
+    description: "Playwright and CI quality gates",
+    href: GITHUB_URL + "/blob/main/TESTING.md",
+    external: true,
+  },
+  {
+    title: "Security",
+    description: "JWT, RBAC, hardening guide",
+    href: GITHUB_URL + "/blob/main/SECURITY.md",
+    external: true,
   },
 ]
 

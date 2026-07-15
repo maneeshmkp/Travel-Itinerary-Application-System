@@ -1,21 +1,16 @@
 "use client"
 
 /**
- * DocumentationLinks — GitHub + live API docs (Swagger / OpenAPI / health).
- * API-relative links use VITE_API_URL origin in production.
+ * DocumentationLinks — README, Swagger, Engineering Handbook, Architecture, Testing.
+ * Swagger uses API origin derived from VITE_API_URL.
  */
 import { BookOpen, ExternalLink } from "lucide-react"
 import { LandingSection, GlassCard } from "./LandingSection"
 import { DOC_LINKS } from "../../constants/landing"
 
-function apiOrigin() {
-  return (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "")
-}
-
-function resolveDocHref(doc) {
-  if (!doc.apiRelative) return doc.href
-  const path = doc.href.startsWith("/") ? doc.href : `/${doc.href}`
-  return `${apiOrigin()}${path}`
+function swaggerHref() {
+  const base = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "")
+  return `${base}/docs`
 }
 
 export default function DocumentationLinks() {
@@ -24,11 +19,11 @@ export default function DocumentationLinks() {
       id="docs"
       eyebrow="Documentation"
       title="Read the system, not just the pitch"
-      lead="Live OpenAPI explorers and health probes — kept in sync with the running API."
+      lead="Handbook, OpenAPI, architecture, and security guides for humans and machines."
     >
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {DOC_LINKS.map((doc) => {
-          const href = resolveDocHref(doc)
+          const href = doc.apiRelative ? swaggerHref() : doc.href
           return (
             <li key={doc.title}>
               <a

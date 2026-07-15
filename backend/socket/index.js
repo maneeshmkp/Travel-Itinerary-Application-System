@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 import User from "../models/User.js"
 import { logSocket } from "../logger/index.js"
 import { recordSocketConnect, recordSocketDisconnect } from "../services/monitoring/metricsStore.js"
-import { isRedisConfigured, logRedis } from "../config/redis.js"
+import { isRedisConfigured, logRedis, resolveRedisUrl } from "../config/redis.js"
 
 /** @type {import("socket.io").Server | null} */
 let io = null
@@ -41,28 +41,22 @@ async function attachRedisAdapter(serverIo) {
   try {
     const { createAdapter } = await import("@socket.io/redis-adapter")
     const Redis = (await import("ioredis")).default
-    const url = process.env.REDIS_URL || process.env.REDIS_URI
+    const url = resolveRedisUrl()
+    if (!url) return false
     const opts = {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
+      lazyConnect: true,
       retryStrategy(times) {
+        if (times > 5) return null
         return Math.min(times * 200, 5000)
       },
     }
     const pubClient = new Redis(url, opts)
     const subClient = pubClient.duplicate()
-    await Promise.all([
-      new Promise((resolve, reject) => {
-        if (pubClient.status === "ready") return resolve()
-        pubClient.once("ready", resolve)
-        pubClient.once("error", reject)
-      }),
-      new Promise((resolve, reject) => {
-        if (subClient.status === "ready") return resolve()
-        subClient.once("ready", resolve)
-        subClient.once("error", reject)
-      }),
-    ])
+    pubClient.on("error", (err) => logRedis.error("Socket Redis pub error", { message: err?.message }))
+    subClient.on("error", (err) => logRedis.error("Socket Redis sub error", { message: err?.message }))
+    await Promise.all([pubClient.connect(), subClient.connect()])
     serverIo.adapter(createAdapter(pubClient, subClient))
     logSocket.info("Socket.IO: Redis adapter enabled (horizontal scaling)")
     logRedis.info("Socket Redis adapter ready")

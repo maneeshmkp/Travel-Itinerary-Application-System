@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import dotenv from "dotenv"
+import connectDB from "./config/db.js"
 import errorHandler from "./middlewares/errorHandler.js"
 import { requestLogger, metricsMiddleware, logStartup } from "./middlewares/requestMetrics.js"
 import {
@@ -17,6 +18,8 @@ import apiRouter from "./routes/apiRouter.js"
 import { mountSwagger } from "./config/swagger.js"
 
 dotenv.config()
+
+connectDB()
 
 const app = express()
 
