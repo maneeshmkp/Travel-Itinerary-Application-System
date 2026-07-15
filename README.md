@@ -621,21 +621,4 @@ If a `LICENSE` file is not yet present in the repository root, add the standard 
 
 ---
 
-## Related documentation
-
-| Doc | Topic |
-|-----|--------|
-| [SECURITY.md](./SECURITY.md) | Auth flow, headers, rate limits, S3 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Mermaid system diagrams |
-| [RBAC.md](./RBAC.md) | Roles & permissions |
-| [MULTITENANCY.md](./MULTITENANCY.md) | Tenants, isolation, plans |
-| [JOBS.md](./JOBS.md) | BullMQ queues & workers |
-| [EVENTS.md](./EVENTS.md) | Domain Event Bus |
-| [MONITORING.md](./MONITORING.md) | Health & metrics |
-| [DOCUMENTS.md](./DOCUMENTS.md) | Document Vault |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Hosting notes |
-| [API.md](./API.md) | API companion notes |
-
----
-
 **TravelPlan** — plan smarter, travel safer, operate at scale.
