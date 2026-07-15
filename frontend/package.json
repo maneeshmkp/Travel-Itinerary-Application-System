@@ -13,6 +13,9 @@
     "format:check": "prettier --check \"src/apiBaseUrl.helper.js\" \"src/apiBaseUrl.helper.test.js\"",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",
     "axios": "^1.6.2",

@@ -7,24 +7,31 @@ services:
     runtime: node
     plan: starter
     rootDir: backend
-    buildCommand: npm ci --omit=dev
+    # Install all deps needed at runtime (lockfile-driven). Avoid --omit=dev pitfalls with native modules.
+    buildCommand: npm ci
     startCommand: node server.js
-    healthCheckPath: /api/health
+    # Liveness only — full /api/health returns 503 when Mongo is down and would fail deploys.
+    healthCheckPath: /api/health/live
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 5000
+      - key: TRUST_PROXY
+        value: "true"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: FRONTEND_URLS
+        sync: false
       - key: REDIS_URL
         sync: false
+      # Default local uploads; set STORAGE_PROVIDER=s3 + AWS_* when S3 is ready
       - key: STORAGE_PROVIDER
-        value: s3
+        value: local
       - key: AWS_S3_BUCKET
         sync: false
       - key: AWS_REGION

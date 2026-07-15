@@ -70,3 +70,7 @@ backend/docs/openapi/.cache/
 # Vite / tooling caches
 frontend/node_modules/.vite/
 **/.vite/
+
+# Markdown docs stay local — only the root README is published to GitHub
+*.md
+!/README.md

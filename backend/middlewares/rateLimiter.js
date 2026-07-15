@@ -121,12 +121,27 @@ export const publicApiRateLimiter = createRateLimiter({
   windowSeconds: 60,
 })
 
-/** Global API soft limit: 300 / minute per IP */
-export const globalApiRateLimiter = createRateLimiter({
+/** Global API soft limit: 300 / minute per IP (skips platform health probes) */
+const globalLimiterInner = createRateLimiter({
   prefix: "global",
   max: Number(process.env.GLOBAL_RATE_LIMIT_MAX || 300),
   windowSeconds: 60,
 })
+
+const HEALTH_PATHS = new Set([
+  "/health",
+  "/health/live",
+  "/api/health",
+  "/api/health/live",
+  "/api/v1/health",
+  "/api/v1/health/live",
+])
+
+export async function globalApiRateLimiter(req, res, next) {
+  const path = String(req.path || "")
+  if (HEALTH_PATHS.has(path)) return next()
+  return globalLimiterInner(req, res, next)
+}
 
 export default {
   createRateLimiter,
