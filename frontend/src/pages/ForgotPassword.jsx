@@ -9,6 +9,7 @@ const ForgotPassword = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [devResetUrl, setDevResetUrl] = useState("")
   const [resendTimer, setResendTimer] = useState(0)
   const navigate = useNavigate()
   const { showSuccess, showError } = useToast()
@@ -24,6 +25,7 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError("")
+    setDevResetUrl("")
 
     // Validation
     if (!email) {
@@ -44,6 +46,7 @@ const ForgotPassword = () => {
 
       if (response.data.success) {
         showSuccess(response.data.message || "Password reset link sent to your email!")
+        if (response.data.resetUrl) setDevResetUrl(response.data.resetUrl)
         setIsSubmitted(true)
         setResendTimer(60) // 60 second cooldown before resend
       }
@@ -63,7 +66,8 @@ const ForgotPassword = () => {
         const response = await authAPI.forgotPassword({ email })
 
         if (response.data.success) {
-          showSuccess("Reset link resent! Check your email.")
+          showSuccess(response.data.message || "Reset link resent! Check your email.")
+          if (response.data.resetUrl) setDevResetUrl(response.data.resetUrl)
           setResendTimer(60)
         }
       } catch (err) {
@@ -82,31 +86,56 @@ const ForgotPassword = () => {
               <CheckCircle className="h-8 w-8 text-primary" />
             </div>
 
-            <h1 className="text-3xl font-heading font-bold text-foreground mb-4">Check Your Email</h1>
+            <h1 className="text-3xl font-heading font-bold text-foreground mb-4">
+              {devResetUrl ? "Reset link ready" : "Check Your Email"}
+            </h1>
             <p className="text-muted-foreground mb-3 leading-relaxed">
-              We've sent a password reset link to <span className="font-semibold text-foreground">{email}</span>.
+              {devResetUrl
+                ? "Email delivery failed locally. Use this link to reset your password:"
+                : (
+                  <>
+                    We've sent a password reset link to <span className="font-semibold text-foreground">{email}</span>.
+                  </>
+                )}
             </p>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
-              Click the link in the email to reset your password.
-            </p>
+
+            {devResetUrl ? (
+              <div className="mb-8 text-left bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <a
+                  href={devResetUrl}
+                  className="text-sm text-primary font-medium break-all hover:underline"
+                >
+                  {devResetUrl}
+                </a>
+              </div>
+            ) : (
+              <p className="text-muted-foreground mb-8 leading-relaxed">
+                Click the link in the email to reset your password.
+              </p>
+            )}
 
             {/* Helpful Tips */}
             <div className="space-y-3 mb-8">
-              <div className="bg-muted rounded-lg p-4 border border-border/50">
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">💡 Tip:</span> Check your spam or promotions folder if you don't see the email.
-                </p>
-              </div>
+              {!devResetUrl ? (
+                <div className="bg-muted rounded-lg p-4 border border-border/50">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">Tip:</span> Check your spam or promotions folder if you don't see the email.
+                  </p>
+                </div>
+              ) : null}
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-900/50">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <span className="font-semibold">📌 Note:</span> The reset link expires in 30 minutes for security.
+                  <span className="font-semibold">Note:</span> The reset link expires in 30 minutes for security.
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
               <button
-                onClick={() => setIsSubmitted(false)}
+                onClick={() => {
+                  setIsSubmitted(false)
+                  setDevResetUrl("")
+                }}
                 className="w-full bg-secondary text-secondary-foreground py-2.5 rounded-lg font-semibold hover:bg-secondary/90 transition-colors"
               >
                 Try Another Email

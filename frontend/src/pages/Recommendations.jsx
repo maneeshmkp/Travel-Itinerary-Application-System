@@ -51,7 +51,7 @@ const Recommendations = () => {
     setLoading(true)
     try {
       const params = Object.fromEntries(Object.entries(criteria).filter(([_, value]) => value !== ""))
-      const response = await recommendationAPI.getRecommendations(params)
+      const response = await recommendationAPI.getAdvanced(params)
       setRecommendations(response.data?.data ?? [])
     } catch (error) {
       console.error("Error fetching recommendations:", error)
@@ -204,6 +204,9 @@ const Recommendations = () => {
                   >
                     <DestinationHeroImage
                       destination={destination.destination}
+                      title={destination.title || destination.destination}
+                      tags={destination.tags ?? []}
+                      coverImage={destination.coverImage}
                       heightClass="h-36"
                       roundedClass="rounded-t-lg"
                       badge={

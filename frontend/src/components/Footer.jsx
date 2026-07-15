@@ -1,17 +1,26 @@
 import { Link } from "react-router-dom"
-import { MapPin, Mail, Phone, Github, Twitter, Instagram } from "lucide-react"
+import { MapPin, Mail, Github, Linkedin } from "lucide-react"
+import { CONTACT_EMAIL, GITHUB_URL, LINKEDIN_URL } from "../constants/landing"
 
 const social = [
-  { href: "https://twitter.com", icon: Twitter, label: "X (Twitter)" },
-  { href: "https://instagram.com", icon: Instagram, label: "Instagram" },
-  { href: "https://github.com", icon: Github, label: "GitHub" },
+  { href: GITHUB_URL, icon: Github, label: "GitHub" },
+  { href: LINKEDIN_URL, icon: Linkedin, label: "LinkedIn" },
+  { href: `mailto:${CONTACT_EMAIL}`, icon: Mail, label: "Email" },
 ]
 
 const productLinks = [
+  { to: "/#features", label: "Features" },
   { to: "/itineraries", label: "Browse itineraries" },
-  { to: "/create", label: "Create itinerary" },
-  { to: "/recommendations", label: "Recommendations" },
-  { to: "/saved", label: "Saved trips" },
+  { to: "/ai-itinerary", label: "AI itinerary" },
+  { to: "/chat", label: "AI Copilot" },
+  { to: "/blogs", label: "Travel blog" },
+]
+
+const resourceLinks = [
+  { href: GITHUB_URL + "/blob/main/docs/engineering/ENGINEERING.md", label: "Engineering Handbook" },
+  { href: GITHUB_URL + "/blob/main/ARCHITECTURE.md", label: "Architecture" },
+  { href: GITHUB_URL + "/blob/main/SECURITY.md", label: "Security" },
+  { href: GITHUB_URL + "/blob/main/TESTING.md", label: "Testing" },
 ]
 
 const legalLinks = [
@@ -36,6 +45,19 @@ function FooterLink({ to, children }) {
   )
 }
 
+function FooterExtLink({ href, children }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:text-foreground focus-visible:underline"
+    >
+      {children}
+    </a>
+  )
+}
+
 const Footer = () => {
   const year = new Date().getFullYear()
 
@@ -43,7 +65,6 @@ const Footer = () => {
     <footer className="mt-auto border-t border-border bg-muted/25">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 py-14 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8 lg:py-16">
-          {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-4 lg:pr-6">
             <Link
               to="/"
@@ -53,16 +74,16 @@ const Footer = () => {
               <span className="font-heading text-lg font-semibold tracking-tight text-foreground">TravelPlan</span>
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-              Plan multi-day trips with structured days, activities, and AI-assisted copy—built for travelers and
-              teams who need clear, shareable itineraries.
+              AI travel management for itineraries, bookings, expenses, flights, and ops—backed by Redis, BullMQ, and
+              enterprise security.
             </p>
             <div className="mt-6 flex items-center gap-3 border-t border-border/60 pt-6">
               {social.map(({ href, icon: Icon, label }) => (
                 <a
                   key={label}
                   href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target={href.startsWith("mailto:") ? undefined : "_blank"}
+                  rel={href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
                   aria-label={label}
                   className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:border-muted-foreground/30 hover:text-foreground"
                 >
@@ -72,7 +93,6 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Product */}
           <div className="lg:col-span-2">
             <FooterSectionTitle>Product</FooterSectionTitle>
             <nav aria-label="Product">
@@ -86,10 +106,22 @@ const Footer = () => {
             </nav>
           </div>
 
-          {/* Legal */}
-          <div className="lg:col-span-2">
-            <FooterSectionTitle>Legal</FooterSectionTitle>
-            <nav aria-label="Legal">
+          <div className="lg:col-span-3">
+            <FooterSectionTitle>Resources</FooterSectionTitle>
+            <nav aria-label="Resources">
+              <ul>
+                {resourceLinks.map(({ href, label }) => (
+                  <li key={label}>
+                    <FooterExtLink href={href}>{label}</FooterExtLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+
+          <div className="lg:col-span-3">
+            <FooterSectionTitle>Legal & contact</FooterSectionTitle>
+            <nav aria-label="Legal" className="mb-4">
               <ul>
                 {legalLinks.map(({ to, label }) => (
                   <li key={to}>
@@ -98,43 +130,20 @@ const Footer = () => {
                 ))}
               </ul>
             </nav>
-          </div>
-
-          {/* Contact */}
-          <div className="sm:col-span-2 lg:col-span-4">
-            <FooterSectionTitle>Contact</FooterSectionTitle>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <a
-                  href="mailto:hello@travelplan.com"
-                  className="inline-flex items-center gap-2.5 text-muted-foreground transition hover:text-foreground"
-                >
-                  <Mail className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  <span className="break-all">hello@travelplan.com</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="tel:+918077439938"
-                  className="inline-flex items-center gap-2.5 text-muted-foreground transition hover:text-foreground"
-                >
-                  <Phone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  <span>+91 (807) 743-9938</span>
-                </a>
-              </li>
-            </ul>
-            <p className="mt-5 text-xs leading-relaxed text-muted-foreground/90">
-              Business inquiries and support: we aim to respond within two business days.
-            </p>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="inline-flex items-center gap-2.5 text-sm text-muted-foreground transition hover:text-foreground"
+            >
+              <Mail className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span className="break-all">{CONTACT_EMAIL}</span>
+            </a>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-border py-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="text-xs text-muted-foreground sm:order-1">
-            © {year} TravelPlan. All rights reserved.
-          </p>
+          <p className="text-xs text-muted-foreground sm:order-1">© {year} TravelPlan. All rights reserved.</p>
           <p className="text-xs text-muted-foreground sm:text-right sm:order-2">
-            Itineraries and AI suggestions are planning aids only—not travel advice or bookings.
+            Itineraries and AI suggestions are planning aids—not travel advice or confirmed bookings.
           </p>
         </div>
       </div>

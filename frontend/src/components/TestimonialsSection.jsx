@@ -63,7 +63,7 @@ function TestimonialsSection() {
   return (
     <section className="border-t border-border/60 bg-background py-20 sm:py-24 md:py-32 lg:py-40">
       <div className="mx-auto w-full max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-        <h2 className="font-heading text-[1.65rem] font-bold leading-tight tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[3.25rem] xl:text-6xl xl:leading-[1.08]">
+        <h2 className="type-section-title">
           What Our Happy Travelers Say
         </h2>
 
@@ -130,10 +130,10 @@ function TestimonialsSection() {
           </button>
 
           <div className="mx-auto max-w-3xl px-11 sm:px-14 md:px-16 lg:max-w-4xl lg:px-20">
-            <p className="font-heading text-xl font-bold leading-snug text-foreground sm:text-2xl md:text-3xl lg:text-[2.125rem]">
+            <p className="type-section-heading text-xl sm:text-2xl md:text-3xl lg:text-[2.125rem]">
               {t.headline}
             </p>
-            <blockquote className="mt-5 text-base font-normal leading-relaxed text-muted-foreground sm:mt-6 sm:text-lg md:text-xl md:leading-relaxed lg:text-[1.35rem] lg:leading-relaxed">
+            <blockquote className="type-lead mt-5 sm:mt-6 md:text-xl lg:text-[1.35rem]">
               &ldquo;{t.quote}&rdquo;
             </blockquote>
             <p className="mt-6 text-base font-semibold text-foreground sm:text-lg md:mt-8">

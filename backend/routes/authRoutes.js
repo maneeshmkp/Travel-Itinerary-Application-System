@@ -6,12 +6,23 @@ import {
   forgotPassword,
   resetPassword,
   getCurrentUser,
+  refresh,
+  logout,
+  logoutAll,
+  listSessions,
+  revokeOneSession,
 } from "../controllers/authController.js"
 import { protect } from "../middlewares/authMiddleware.js"
+import {
+  loginRateLimiter,
+  signupRateLimiter,
+  forgotPasswordRateLimiter,
+  resetPasswordRateLimiter,
+  refreshRateLimiter,
+} from "../middlewares/rateLimiter.js"
 
 const router = express.Router()
 
-// Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -23,7 +34,6 @@ const handleValidationErrors = (req, res, next) => {
   next()
 }
 
-// Validation middleware
 const validateSignup = [
   body("name").notEmpty().withMessage("Name is required").trim(),
   body("email").isEmail().withMessage("Invalid email address"),
@@ -53,11 +63,27 @@ const validateResetPassword = [
   }),
 ]
 
-// Routes
-router.post("/signup", validateSignup, handleValidationErrors, signup)
-router.post("/login", validateLogin, handleValidationErrors, login)
-router.post("/forgot-password", validateForgotPassword, handleValidationErrors, forgotPassword)
-router.post("/reset-password/:resetToken", validateResetPassword, handleValidationErrors, resetPassword)
+router.post("/signup", signupRateLimiter, validateSignup, handleValidationErrors, signup)
+router.post("/login", loginRateLimiter, validateLogin, handleValidationErrors, login)
+router.post("/refresh", refreshRateLimiter, refresh)
+router.post(
+  "/forgot-password",
+  forgotPasswordRateLimiter,
+  validateForgotPassword,
+  handleValidationErrors,
+  forgotPassword,
+)
+router.post(
+  "/reset-password/:resetToken",
+  resetPasswordRateLimiter,
+  validateResetPassword,
+  handleValidationErrors,
+  resetPassword,
+)
 router.get("/me", protect, getCurrentUser)
+router.post("/logout", protect, logout)
+router.post("/logout-all", protect, logoutAll)
+router.get("/sessions", protect, listSessions)
+router.delete("/sessions/:id", protect, revokeOneSession)
 
 export default router

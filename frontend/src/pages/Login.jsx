@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useLocation, Link } from "react-router-dom"
+import { useNavigate, useLocation, Link, useSearchParams } from "react-router-dom"
 import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { useToast } from "../hooks/useToast"
 import { useAuth } from "../context/AuthContext"
@@ -12,10 +12,14 @@ const Login = () => {
   const [error, setError] = useState("")
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { login } = useAuth()
   const { showSuccess, showError } = useToast()
 
-  const redirectMessage = location.state?.message
+  const redirectMessage =
+    location.state?.message ||
+    (searchParams.get("session") === "expired" ? "Your session expired. Please sign in again." : "")
+  const returnPath = searchParams.get("from")
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -39,7 +43,12 @@ const Login = () => {
       showSuccess("Login successful!")
       const from = location.state?.from
       if (from?.pathname) {
-        navigate(`${from.pathname}${from.search || ""}`, { replace: true })
+        navigate(`${from.pathname}${from.search || ""}`, {
+          replace: true,
+          state: from.state,
+        })
+      } else if (returnPath && returnPath.startsWith("/")) {
+        navigate(returnPath, { replace: true })
       } else {
         navigate("/", { replace: true })
       }

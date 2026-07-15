@@ -73,8 +73,14 @@ const Itineraries = () => {
       }
 
       const response = await itineraryAPI.getAll(params)
-      setItineraries(response.data.data ?? [])
-      setPagination(response.data.pagination)
+      const body = response.data
+      setItineraries(body.data ?? [])
+      setPagination({
+        page: body.pagination?.page ?? fetchPage,
+        limit: body.pagination?.limit ?? pagination.limit,
+        pages: body.pagination?.pages ?? 0,
+        total: body.total ?? body.pagination?.total ?? 0,
+      })
     } catch (err) {
       console.error("Error fetching itineraries:", err)
       setError("Failed to load itineraries. Please try again.")
@@ -244,8 +250,8 @@ const Itineraries = () => {
               <div className="flex items-center justify-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
+                  onClick={() => handlePageChange(fetchPage - 1)}
+                  disabled={fetchPage <= 1}
                   className="px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
@@ -259,7 +265,7 @@ const Itineraries = () => {
                       type="button"
                       onClick={() => handlePageChange(page)}
                       className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                        pagination.page === page
+                        fetchPage === page
                           ? "bg-primary text-primary-foreground"
                           : "border border-border text-foreground hover:bg-muted"
                       }`}
@@ -271,8 +277,8 @@ const Itineraries = () => {
 
                 <button
                   type="button"
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.pages}
+                  onClick={() => handlePageChange(fetchPage + 1)}
+                  disabled={fetchPage >= pagination.pages}
                   className="px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next

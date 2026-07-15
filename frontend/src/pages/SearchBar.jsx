@@ -3,9 +3,23 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { Search } from "lucide-react"
 import { itineraryAPI } from "../services/api"
 import { useDebouncedValue } from "../hooks/useDebouncedValue"
+import { useAskAi } from "../context/AskAiContext"
+import { useAuth } from "../context/AuthContext"
+
+const GUARD_MESSAGE = "Please login to access this feature"
+
+const guardLogin = (pathname, search = "") => ({
+  pathname: "/login",
+  state: {
+    from: { pathname, search },
+    message: GUARD_MESSAGE,
+  },
+})
 
 function SearchBarActive() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const { openAskAi } = useAskAi()
   const [query, setQuery] = useState("")
   const [suggestions, setSuggestions] = useState([])
   const [open, setOpen] = useState(false)
@@ -15,6 +29,11 @@ function SearchBarActive() {
   const debouncedQuery = useDebouncedValue(query, 300)
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setSuggestions([])
+      setLoadingSug(false)
+      return
+    }
     const q = debouncedQuery.trim()
     if (q.length < 2) {
       setSuggestions([])
@@ -37,7 +56,7 @@ function SearchBarActive() {
     return () => {
       cancelled = true
     }
-  }, [debouncedQuery])
+  }, [debouncedQuery, isAuthenticated])
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -52,9 +71,14 @@ function SearchBarActive() {
       const term = (raw ?? query).trim()
       setOpen(false)
       if (!term) return
-      navigate(`/itineraries?search=${encodeURIComponent(term)}`)
+      const search = `?search=${encodeURIComponent(term)}`
+      if (!isAuthenticated) {
+        navigate(guardLogin("/itineraries", search))
+        return
+      }
+      navigate(`/itineraries${search}`)
     },
-    [navigate, query],
+    [isAuthenticated, navigate, query],
   )
 
   const onSubmit = (e) => {
@@ -70,14 +94,14 @@ function SearchBarActive() {
   }
 
   return (
-    <div ref={wrapRef} className="relative max-w-xl mx-auto px-4 py-2">
+    <div ref={wrapRef} className="relative max-w-2xl mx-auto px-4 py-2">
       <form onSubmit={onSubmit} className="form-search-shell">
         <div className="flex flex-1 items-center pl-3 min-w-0">
           <Search className="h-4 w-4 text-gray-400 shrink-0" />
           <input
             type="search"
             autoComplete="off"
-            placeholder="Search destinations, itineraries, activities..."
+            placeholder="Places to go, things to do, hotels…"
             className="form-search-input text-base sm:text-sm"
             value={query}
             onChange={(e) => {
@@ -89,9 +113,13 @@ function SearchBarActive() {
           />
         </div>
         <button
-          type="submit"
-          className="px-5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+          type="button"
+          onClick={() => openAskAi(query)}
+          className="form-search-ask-ai px-3 sm:px-4 text-xs sm:text-sm"
         >
+          Ask AI
+        </button>
+        <button type="submit" className="form-search-submit px-5">
           Search
         </button>
       </form>

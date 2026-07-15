@@ -1,0 +1,15 @@
+# frontend
+node_modules
+dist
+npm-debug.log*
+.env
+.env.*
+!.env.example
+!.env.*.example
+coverage
+.git
+.gitignore
+Dockerfile
+.dockerignore
+**/*.md
+public/pwa/screenshots

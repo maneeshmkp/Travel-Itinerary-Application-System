@@ -1,13 +1,22 @@
 import nodemailer from "nodemailer"
 
-// Create transporter for Gmail
-const createTransporter = () => {
+/** Gmail App Passwords often pick up trailing/spaces when pasted into .env */
+function smtpAuth() {
+  const user = String(process.env.EMAIL_USER || "").trim()
+  const pass = String(process.env.EMAIL_PASSWORD || "")
+    .trim()
+    .replace(/\s+/g, "")
+  return { user, pass }
+}
+
+function createTransporter() {
+  const { user, pass } = smtpAuth()
+  if (!user || !pass) {
+    throw new Error("EMAIL_USER / EMAIL_PASSWORD are not configured")
+  }
   return nodemailer.createTransport({
     service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD, // Use App Password for Gmail
-    },
+    auth: { user, pass },
   })
 }
 
@@ -15,9 +24,10 @@ const createTransporter = () => {
 export const sendPasswordResetEmail = async (email, resetToken, resetUrl) => {
   try {
     const transporter = createTransporter()
+    const { user } = smtpAuth()
 
     const mailOptions = {
-      from: `Travel Itinerary <${process.env.EMAIL_USER}>`,
+      from: `Travel Itinerary <${user}>`,
       to: email,
       subject: "Password Reset Link - Travel Itinerary",
       html: `
@@ -66,7 +76,12 @@ export const sendPasswordResetEmail = async (email, resetToken, resetUrl) => {
     return { success: true, message: "Email sent successfully", messageId: result.messageId }
   } catch (error) {
     console.error("Email sending error:", error)
-    return { success: false, message: error.message }
+    return {
+      success: false,
+      message: error.message,
+      code: error.code,
+      responseCode: error.responseCode,
+    }
   }
 }
 
@@ -74,9 +89,10 @@ export const sendPasswordResetEmail = async (email, resetToken, resetUrl) => {
 export const sendWelcomeEmail = async (email, userName) => {
   try {
     const transporter = createTransporter()
+    const { user } = smtpAuth()
 
     const mailOptions = {
-      from: `Travel Itinerary <${process.env.EMAIL_USER}>`,
+      from: `Travel Itinerary <${user}>`,
       to: email,
       subject: "Welcome to Travel Itinerary!",
       html: `

@@ -32,11 +32,13 @@ Check your `.env` file has these variables:
 
 ```env
 PORT=8000
-MONGO_URI=mongodb+srv://12212016it_db_user:4Ol0HgTVRxt7K8CZ@cluster0.6ov0taa.mongodb.net
+MONGO_URI=mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/DATABASE
 NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 FRONTEND_URL=http://localhost:5173
 ```
+
+Copy values from `backend/.env.example` into a local `backend/.env` (never commit `.env`).
 
 ### 3. Run the Backend Server
 
@@ -87,15 +89,13 @@ npm install
 
 ### Issue: MongoDB Connection Error
 
-**Solution:** Check your MONGO_URI in .env file:
-```
-MONGO_URI=mongodb+srv://12212016it_db_user:4Ol0HgTVRxt7K8CZ@cluster0.6ov0taa.mongodb.net
-```
+**Solution:** Check your `MONGO_URI` in the local `.env` file (see `backend/.env.example`).
 
 Make sure:
 - Username and password are correct
 - IP address is whitelisted in MongoDB Atlas
 - Database name is included in the URI
+- You never paste real credentials into docs or commits
 
 ### Issue: Port Already in Use
 
@@ -152,10 +152,9 @@ curl -X POST http://localhost:8000/api/auth/forgot-password \
 
 ## Database
 
-The backend uses MongoDB Atlas (cloud database):
-- **Cluster**: cluster0.6ov0taa.mongodb.net
-- **Username**: 12212016it_db_user
-- **Collections**: Users, Itineraries, Days, Activities
+The backend uses MongoDB (local or Atlas). Configure connection via `MONGO_URI` in `backend/.env`.
+
+Typical collections include: Users, Itineraries, Days, Activities, Bookings, Notifications.
 
 Data is automatically created when you:
 - Sign up (creates User)

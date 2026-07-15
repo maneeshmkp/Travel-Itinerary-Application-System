@@ -1,4 +1,6 @@
 import mongoose from "mongoose"
+import { CURRENCY_CODES, DEFAULT_CURRENCY } from "../constants/currencies.js"
+import { tenantScopePlugin } from "../utils/tenantScope.js"
 
 const itinerarySchema = new mongoose.Schema(
   {
@@ -37,8 +39,21 @@ const itinerarySchema = new mongoose.Schema(
       max: Number,
       currency: {
         type: String,
-        default: "USD",
+        enum: CURRENCY_CODES,
+        default: DEFAULT_CURRENCY,
       },
+    },
+    /** Sum of all activity.cost values (cached; recomputed on read/write). */
+    totalBudget: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    /** Average activity spend per trip day (totalBudget / totalDays). */
+    costPerDay: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     bestTimeToVisit: {
       type: String,
@@ -74,6 +89,51 @@ const itinerarySchema = new mongoose.Schema(
       type: String,
       default: "System",
     },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+    collaborators: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    collaborateEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    collaborateToken: {
+      type: String,
+      trim: true,
+      select: false,
+    },
+    /** Optional trip start date for reminders and weather scheduling */
+    startDate: {
+      type: Date,
+    },
+    coverImage: {
+      url: { type: String, trim: true },
+      alt: { type: String, trim: true },
+      source: { type: String, trim: true },
+      photographer: { type: String, trim: true },
+      photographerUrl: { type: String, trim: true },
+      query: { type: String, trim: true },
+      updatedAt: { type: Date },
+    },
+    /** @deprecated Use coverImage.url — kept for backward compatibility reads */
+    imageUrl: { type: String, trim: true },
+    image: { type: String, trim: true },
+    thumbnail: { type: String, trim: true },
+    heroImage: { type: String, trim: true },
   },
   {
     timestamps: true,
@@ -87,6 +147,19 @@ itinerarySchema.pre("validate", function (next) {
   }
   next()
 })
+
+itinerarySchema.plugin(tenantScopePlugin)
+
+// List / “my trips” / scheduler: filter by owner + sort by recency
+itinerarySchema.index({ ownerId: 1, createdAt: -1 })
+// Tenant-scoped trip lists
+itinerarySchema.index({ tenantId: 1, ownerId: 1, createdAt: -1 })
+// Collaborator access checks
+itinerarySchema.index({ "collaborators.userId": 1 })
+// Recommendation / explore fallbacks
+itinerarySchema.index({ isRecommended: 1, createdAt: -1 })
+itinerarySchema.index({ destination: 1, createdAt: -1 })
+itinerarySchema.index({ tags: 1 })
 
 const Itinerary = mongoose.model("Itinerary", itinerarySchema)
 export default Itinerary

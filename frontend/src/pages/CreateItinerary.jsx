@@ -1,15 +1,27 @@
 "use client"
 
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { Plus, Minus, Calendar, Hotel, Activity, Save, ArrowLeft, Sparkles, Loader2 } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
+import { Plus, Minus, Calendar, Hotel, Activity, Save, ArrowLeft, Sparkles, Loader2, Wallet } from "lucide-react"
 import { itineraryAPI, aiAPI } from "../services/api"
 import { useToast } from "../hooks/useToast"
 import Toast from "../components/Toast"
 import { ITINERARY_TAG_OPTIONS } from "../constants/itineraryTags"
+import { computeFormBudgetInsight, formatMoney, normalizeCost } from "../utils/budgetCalculations"
+import { DEFAULT_CURRENCY, currencySymbol } from "../constants/currencies"
+import CurrencySelect from "../components/common/CurrencySelect"
+import ItineraryMap from "../components/ItineraryMap"
+import { maybeAutoDownloadTrip } from "../offline/tripDownload"
 
 function manualHighlightsEmpty(highlights) {
   return !highlights?.some((h) => String(h).trim())
+}
+
+function parseOptionalCoord(value, min, max) {
+  if (value === "" || value === undefined || value === null) return undefined
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < min || n > max) return undefined
+  return n
 }
 
 function buildItineraryAiPayload(formData) {
@@ -28,6 +40,9 @@ function buildItineraryAiPayload(formData) {
         time: a.time,
         location: a.location,
         category: a.category,
+        cost: normalizeCost(a.cost),
+        latitude: parseOptionalCoord(a.latitude, -90, 90),
+        longitude: parseOptionalCoord(a.longitude, -180, 180),
       })),
     })),
   }
@@ -67,6 +82,7 @@ function localFallbackHighlights(formData) {
 
 const CreateItinerary = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { toasts, showSuccess, showError, removeToast } = useToast()
   const [loading, setLoading] = useState(false)
   /** null | 'enrich' | number (dayIndex) for suggest-day */
@@ -79,7 +95,7 @@ const CreateItinerary = () => {
     budget: {
       min: "",
       max: "",
-      currency: "USD",
+      currency: DEFAULT_CURRENCY,
     },
     bestTimeToVisit: "",
     highlights: [""],
@@ -104,6 +120,9 @@ const CreateItinerary = () => {
             location: "",
             category: "sightseeing",
             duration: "2-3 hours",
+            cost: "",
+            latitude: "",
+            longitude: "",
           },
         ],
         meals: [],
@@ -113,6 +132,68 @@ const CreateItinerary = () => {
 
   const tagOptions = ITINERARY_TAG_OPTIONS
   const activityCategories = ["sightseeing", "adventure", "cultural", "relaxation", "dining", "shopping"]
+
+  const budgetLive = useMemo(() => computeFormBudgetInsight(formData), [formData])
+
+  useEffect(() => {
+    const prefilled = location.state?.prefilled
+    if (!prefilled) return
+    setFormData({
+      title: prefilled.title || "",
+      destination: prefilled.destination || "",
+      numberOfNights: prefilled.numberOfNights || 3,
+      description: prefilled.description || "",
+      budget: {
+        min: prefilled.budget?.min ?? "",
+        max: prefilled.budget?.max ?? "",
+        currency: prefilled.budget?.currency || DEFAULT_CURRENCY,
+      },
+      bestTimeToVisit: prefilled.bestTimeToVisit || "",
+      highlights: prefilled.highlights?.length ? prefilled.highlights : [""],
+      tags: prefilled.tags || [],
+      days: (prefilled.days || []).map((day) => ({
+        dayNumber: day.dayNumber,
+        dayLabel: day.dayLabel || "",
+        hotel: {
+          name: day.hotel?.name || "",
+          location: day.hotel?.location || "",
+          rating: day.hotel?.rating ?? 4,
+          checkIn: day.hotel?.checkIn || "",
+          checkOut: day.hotel?.checkOut || "",
+        },
+        transfers: day.transfers || [],
+        activities: (day.activities || []).map((a) => ({
+          name: a.name || "",
+          description: a.description || "",
+          time: a.time || "",
+          location: a.location || "",
+          category: a.category || "sightseeing",
+          duration: a.duration || "2-3 hours",
+          cost: a.cost ?? "",
+          latitude: "",
+          longitude: "",
+        })),
+        meals: day.meals || [],
+      })),
+    })
+    navigate("/create", { replace: true, state: {} })
+  }, [location.state, navigate])
+
+  const mapPreviewDays = useMemo(
+    () =>
+      formData.days.map((d) => ({
+        _id: `preview-day-${d.dayNumber}`,
+        dayNumber: d.dayNumber,
+        dayLabel: d.dayLabel,
+        activities: (d.activities || []).map((a, i) => ({
+          _id: `preview-a-${d.dayNumber}-${i}`,
+          name: a.name,
+          latitude: parseOptionalCoord(a.latitude, -90, 90),
+          longitude: parseOptionalCoord(a.longitude, -180, 180),
+        })),
+      })),
+    [formData.days],
+  )
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -177,7 +258,11 @@ const CreateItinerary = () => {
 
   const handleActivityChange = (dayIndex, activityIndex, field, value) => {
     const newDays = [...formData.days]
-    newDays[dayIndex].activities[activityIndex][field] = value
+    if (field === "cost" || field === "latitude" || field === "longitude") {
+      newDays[dayIndex].activities[activityIndex][field] = value === "" ? "" : value
+    } else {
+      newDays[dayIndex].activities[activityIndex][field] = value
+    }
     setFormData((prev) => ({
       ...prev,
       days: newDays,
@@ -193,6 +278,9 @@ const CreateItinerary = () => {
       location: "",
       category: "sightseeing",
       duration: "2-3 hours",
+      cost: "",
+      latitude: "",
+      longitude: "",
     })
     setFormData((prev) => ({
       ...prev,
@@ -235,6 +323,9 @@ const CreateItinerary = () => {
               location: "",
               category: "sightseeing",
               duration: "2-3 hours",
+              cost: "",
+              latitude: "",
+              longitude: "",
             },
           ],
           meals: [],
@@ -312,9 +403,24 @@ const CreateItinerary = () => {
           max: Number(formData.budget.max) || undefined,
           currency: formData.budget.currency,
         },
+        days: formData.days.map((d) => ({
+          ...d,
+          activities: d.activities.map((a) => {
+            const la = parseOptionalCoord(a.latitude, -90, 90)
+            const lo = parseOptionalCoord(a.longitude, -180, 180)
+            const act = { ...a, cost: normalizeCost(a.cost) }
+            if (la !== undefined) act.latitude = la
+            else delete act.latitude
+            if (lo !== undefined) act.longitude = lo
+            else delete act.longitude
+            return act
+          }),
+        })),
       }
 
       const response = await itineraryAPI.create(cleanedData)
+      const newId = response.data?.data?._id
+      if (newId) maybeAutoDownloadTrip(newId)
       showSuccess("Itinerary created successfully!")
 
       // Navigate after a short delay to show the success message
@@ -352,6 +458,9 @@ const CreateItinerary = () => {
             time: a.time,
             location: a.location,
             category: a.category,
+            cost: normalizeCost(a.cost),
+            latitude: parseOptionalCoord(a.latitude, -90, 90),
+            longitude: parseOptionalCoord(a.longitude, -180, 180),
           })),
         })),
       }
@@ -430,6 +539,9 @@ const CreateItinerary = () => {
         location: String(a.location || formData.destination).slice(0, 200),
         category: allowed.includes(a.category) ? a.category : "sightseeing",
         duration: String(a.duration || "2 hours").slice(0, 40),
+        cost: normalizeCost(a.cost),
+        latitude: "",
+        longitude: "",
       }))
       if (normalized.length === 0) {
         showError("AI returned no activities. Try again.")
@@ -550,9 +662,18 @@ const CreateItinerary = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <CurrencySelect
+                value={formData.budget.currency}
+                onChange={(code) => handleBudgetChange("currency", code)}
+                id="trip-currency"
+                label="Trip currency"
+                selectClassName="form-input mt-1"
+              />
               <div className="space-y-1">
-                <label className="form-label">Budget Min ($)</label>
+                <label className="form-label">
+                  Budget min ({currencySymbol(formData.budget.currency)})
+                </label>
                 <input
                   type="number"
                   value={formData.budget.min}
@@ -562,7 +683,9 @@ const CreateItinerary = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="form-label">Budget Max ($)</label>
+                <label className="form-label">
+                  Budget max ({currencySymbol(formData.budget.currency)})
+                </label>
                 <input
                   type="number"
                   value={formData.budget.max}
@@ -580,6 +703,41 @@ const CreateItinerary = () => {
                   className="form-input"
                   placeholder="November - March"
                 />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
+              <div className="flex items-start gap-3">
+                <Wallet className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2 text-left">
+                  <h3 className="font-heading text-sm font-semibold text-foreground">Activity cost estimate (live)</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Total trip (activities)</p>
+                      <p className="text-lg font-bold text-foreground">
+                        {formatMoney(budgetLive.totalBudget, budgetLive.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Average / day</p>
+                      <p className="text-lg font-bold text-foreground">
+                        {formatMoney(budgetLive.costPerDay, budgetLive.currency)}
+                      </p>
+                    </div>
+                  </div>
+                  {formData.budget.max !== "" &&
+                    Number(formData.budget.max) > 0 &&
+                    budgetLive.totalBudget > Number(formData.budget.max) && (
+                      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        Estimated activity total exceeds your planned budget max (
+                        {formatMoney(Number(formData.budget.max), budgetLive.currency)}). Adjust costs or planned
+                        range.
+                      </p>
+                    )}
+                  <p className="text-xs text-muted-foreground">
+                    Add an estimated cost per activity below; totals update as you type.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -819,6 +977,60 @@ const CreateItinerary = () => {
                         />
                       </div>
 
+                      <div className="mb-4 max-w-xs space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Est. cost ({formData.budget.currency || DEFAULT_CURRENCY})
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={activity.cost === "" || activity.cost === undefined ? "" : activity.cost}
+                          onChange={(e) => handleActivityChange(dayIndex, activityIndex, "cost", e.target.value)}
+                          className="form-input"
+                          placeholder="0"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Latitude (optional, −90–90)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            min={-90}
+                            max={90}
+                            value={
+                              activity.latitude === "" || activity.latitude === undefined ? "" : activity.latitude
+                            }
+                            onChange={(e) =>
+                              handleActivityChange(dayIndex, activityIndex, "latitude", e.target.value)
+                            }
+                            className="form-input"
+                            placeholder="e.g. 7.896"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">
+                            Longitude (optional, −180–180)
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min={-180}
+                            max={180}
+                            value={
+                              activity.longitude === "" || activity.longitude === undefined ? "" : activity.longitude
+                            }
+                            onChange={(e) =>
+                              handleActivityChange(dayIndex, activityIndex, "longitude", e.target.value)
+                            }
+                            className="form-input"
+                            placeholder="e.g. 98.297"
+                          />
+                        </div>
+                      </div>
+
                       <textarea
                         value={activity.description}
                         onChange={(e) => handleActivityChange(dayIndex, activityIndex, "description", e.target.value)}
@@ -833,6 +1045,8 @@ const CreateItinerary = () => {
               </div>
             ))}
           </div>
+
+          <ItineraryMap days={mapPreviewDays} destination={formData.destination} />
 
           {/* Submit Button */}
           <div className="flex justify-end gap-3 pt-8 border-t border-gray-100">

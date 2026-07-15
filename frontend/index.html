@@ -2,10 +2,68 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("travelplan-theme");
+          if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/pwa/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TravelPlan - Your Perfect Travel Itinerary Builder</title>
-    <meta name="description" content="Create and discover amazing travel itineraries for your next adventure. Plan your perfect trip with detailed day-by-day guides." />
+    <title>TravelPlan — AI Travel Management Platform</title>
+    <meta
+      name="description"
+      content="Plan trips with AI itineraries, Copilot, bookings, expenses, flight tracking, maps, weather, and a secure document vault. MERN, Redis, BullMQ, Docker."
+    />
+    <meta name="keywords" content="TravelPlan, AI itinerary, travel management, expense tracker, flight tracking, MERN SaaS" />
+    <link rel="canonical" href="/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TravelPlan" />
+    <meta property="og:title" content="TravelPlan — AI Travel Management Platform" />
+    <meta
+      property="og:description"
+      content="AI travel ops: itineraries, Copilot, bookings, expenses, flights, maps, weather, and vault—enterprise ready."
+    />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TravelPlan — AI Travel Management Platform" />
+    <meta
+      name="twitter:description"
+      content="AI travel ops for modern teams. Plan, book, track, and collaborate."
+    />
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "TravelPlan",
+        "applicationCategory": "TravelApplication",
+        "operatingSystem": "Web",
+        "description": "AI travel management platform for itineraries, bookings, expenses, and operations.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
   </head>
   <body>
     <div id="root"></div>

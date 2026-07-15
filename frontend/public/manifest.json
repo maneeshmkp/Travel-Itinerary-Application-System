@@ -1,0 +1,26 @@
+{
+  "name": "TravelPlan",
+  "short_name": "TravelPlan",
+  "description": "Plan trips, track expenses, and travel offline with TravelPlan.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#15803d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/default-travel.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/default-travel.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["travel", "productivity"],
+  "screenshots": []
+}

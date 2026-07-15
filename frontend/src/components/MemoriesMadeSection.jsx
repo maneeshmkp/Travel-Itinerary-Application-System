@@ -149,11 +149,11 @@ const MemoriesMadeSection = () => {
 
       <div className="relative z-[1] mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">Travel stories</p>
-          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-[2.65rem] md:leading-tight">
+          <p className="type-eyebrow uppercase tracking-[0.22em] text-primary mb-3">Travel stories</p>
+          <h2 className="type-section-title">
             Memories Made with Us
           </h2>
-          <p className="mt-5 text-base font-normal leading-relaxed text-muted-foreground sm:text-[17px]">
+          <p className="type-lead mt-5">
             Journeys our travelers still talk about—high passes, still water, old towns, and moments that belong on a
             wall, not only in a camera roll.
           </p>

@@ -1,0 +1,6921 @@
+openapi: 3.1.0
+info:
+  title: TravelPlan API
+  version: 1.0.0
+  description: >-
+    # TravelPlan Public API
+
+
+    Production-grade AI travel management API.
+
+
+    ## Versioning
+
+
+    - **Current:** `/api/v1`
+
+    - **Legacy (compatible):** `/api` (same handlers; receives `X-API-Version:
+    1`)
+
+
+    Prefer `/api/v1` for all new integrations.
+
+
+    ## Authentication
+
+
+    Most endpoints require a JWT Bearer token from `POST /api/v1/auth/login` or
+    signup.
+
+
+    ```
+
+    Authorization: Bearer <token>
+
+    ```
+
+
+    Admin monitoring APIs additionally require an admin role (`User.role=admin`
+    or `ADMIN_EMAILS`).
+
+
+    ## Rate limits
+
+
+    Redis-backed limits (fail-open if Redis is down):
+
+
+    | Scope | Limit |
+
+    |-------|-------|
+
+    | Login | 10 / minute |
+
+    | Signup | 10 / minute |
+
+    | Forgot password | 5 / minute |
+
+    | AI endpoints | 20 / hour |
+
+    | Public weather | 60 / minute |
+
+
+    Responses may include `X-RateLimit-*` headers. HTTP **429** when exceeded.
+
+
+    ## Errors
+
+
+    Error bodies use:
+
+
+    ```json
+
+    { "success": false, "code": "ERROR_CODE", "message": "Human readable",
+    "error": "..." }
+
+    ```
+  contact:
+    name: TravelPlan API
+    email: hello@travelplan.com
+  license:
+    name: Proprietary
+    identifier: LicenseRef-TravelPlan-Proprietary
+servers:
+  - url: http://localhost:5000
+    description: Local development (paths include /api/v1)
+  - url: https://api.travelplan.example
+    description: Production host (example)
+tags:
+  - name: Health
+    description: Liveness and dependency health
+  - name: Authentication
+    description: Signup, login, password reset, current user
+  - name: Trips
+    description: Itineraries / trips CRUD, save, collaborate, expenses on trips
+  - name: Bookings
+    description: Flight/hotel/activity booking tracker
+  - name: Expenses
+    description: Trip expense tracker (via itineraries)
+  - name: Documents
+    description: Travel document vault (S3)
+  - name: Notifications
+    description: In-app notifications and settings
+  - name: Weather
+    description: Current weather and forecasts (cached)
+  - name: Maps
+    description: Nearby places / map recommendations
+  - name: Recommendations
+    description: Destination and trip recommendations
+  - name: Analytics
+    description: Travel analytics dashboard and exports
+  - name: AI
+    description: AI itinerary, enrichment, and copilots (rate limited)
+  - name: Copilot
+    description: Travel Copilot chat sessions
+  - name: Flight Tracking
+    description: Live flight status and tracking
+  - name: Calendar
+    description: Google / Outlook calendar sync
+  - name: Packing
+    description: AI packing lists
+  - name: Risk
+    description: Trip risk analysis
+  - name: Budget
+    description: AI budget optimizer
+  - name: Availability
+    description: Hotel/flight/train/bus/activity search
+  - name: Blogs
+    description: Public travel blogs
+  - name: Monitoring
+    description: Admin-only observability
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT from /auth/login or /auth/signup. Send as `Authorization:
+        Bearer <token>`."
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data: {}
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        code:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+        error:
+          type: string
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: Ada Lovelace
+        email:
+          type: string
+          format: email
+          example: ada@example.com
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+          example: user
+        createdAt:
+          type: string
+          format: date-time
+    AuthTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        token:
+          type: string
+          description: JWT access token
+        user:
+          $ref: "#/components/schemas/User"
+    Trip:
+      type: object
+      description: Itinerary / trip document
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+          example: Tokyo Spring Escape
+        destination:
+          type: string
+          example: Tokyo, Japan
+        numberOfNights:
+          type: integer
+          example: 4
+        totalDays:
+          type: integer
+          example: 5
+        description:
+          type: string
+        budget:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            currency:
+              type: string
+              example: USD
+        highlights:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        days:
+          type: array
+          items:
+            type: object
+        ownerId:
+          type: string
+        collaboration:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Booking:
+      type: object
+      properties:
+        _id:
+          type: string
+        tripId:
+          type: string
+        bookingType:
+          type: string
+          enum:
+            - flight
+            - hotel
+            - activity
+            - train
+            - bus
+            - other
+        provider:
+          type: string
+          example: Air India
+        bookingReference:
+          type: string
+        confirmationNumber:
+          type: string
+        status:
+          type: string
+        paymentStatus:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        flightNumber:
+          type: string
+        checkIn:
+          type: string
+          format: date-time
+        checkOut:
+          type: string
+          format: date-time
+        departureDate:
+          type: string
+          format: date-time
+    Expense:
+      type: object
+      properties:
+        _id:
+          type: string
+        itineraryId:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+          example: 42.5
+        currency:
+          type: string
+          example: USD
+        category:
+          type: string
+          example: food
+        description:
+          type: string
+          example: Lunch at café
+        dayNumber:
+          type: integer
+        paymentMethod:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: TRIP_CREATED
+        category:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        priority:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - CRITICAL
+        status:
+          type: string
+          enum:
+            - UNREAD
+            - READ
+            - ARCHIVED
+        read:
+          type: boolean
+        actionUrl:
+          type: string
+        trip:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          example: Passport scan
+        documentType:
+          type: string
+          example: passport
+        tripId:
+          type: string
+          nullable: true
+        country:
+          type: string
+        expiryDate:
+          type: string
+          format: date-time
+          nullable: true
+        isFavorite:
+          type: boolean
+        mimeType:
+          type: string
+        storageProvider:
+          type: string
+          example: s3
+        createdAt:
+          type: string
+          format: date-time
+    Weather:
+      type: object
+      properties:
+        destination:
+          type: string
+        location:
+          type: string
+        date:
+          type: string
+          format: date
+        condition:
+          type: string
+          example: Clear
+        tempC:
+          type: number
+        humidity:
+          type: number
+        demo:
+          type: boolean
+    Analytics:
+      type: object
+      properties:
+        exists:
+          type: boolean
+        totalTrips:
+          type: integer
+        travelScore:
+          type: number
+        totalSpent:
+          type: number
+        charts:
+          type: object
+        heatmap:
+          type: array
+          items:
+            type: object
+        insights:
+          type: array
+          items:
+            type: string
+    AIResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        demo:
+          type: boolean
+          description: True when demo/fallback model used
+        data:
+          type: object
+        message:
+          type: string
+    SignupRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - confirmPassword
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Ada Lovelace
+        email:
+          type: string
+          format: email
+          example: ada@example.com
+        password:
+          type: string
+          minLength: 6
+          example: Secret123!
+        confirmPassword:
+          type: string
+          minLength: 6
+          example: Secret123!
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: ada@example.com
+        password:
+          type: string
+          example: Secret123!
+    CreateBookingRequest:
+      type: object
+      required:
+        - tripId
+        - bookingType
+      properties:
+        tripId:
+          type: string
+        bookingType:
+          type: string
+          enum:
+            - flight
+            - hotel
+            - activity
+            - train
+            - bus
+            - other
+        provider:
+          type: string
+        bookingReference:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        flightNumber:
+          type: string
+    CreateExpenseRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          example: 25
+        currency:
+          type: string
+          example: USD
+        category:
+          type: string
+          example: food
+        description:
+          type: string
+        dayNumber:
+          type: integer
+          example: 1
+        paymentMethod:
+          type: string
+          example: card
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+        color:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+        memory:
+          type: object
+        metrics:
+          type: object
+  parameters:
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[a-fA-F0-9]{24}$
+paths:
+  /health:
+    get:
+      summary: Root health check
+      description: Root health check
+      tags:
+        - Health
+      parameters: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+      operationId: getRootHealth
+      security: []
+  /api/health:
+    get:
+      summary: Legacy API health
+      description: Legacy API health
+      tags:
+        - Health
+      parameters: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+      operationId: getApiHealth
+      security: []
+  /api/v1/health:
+    get:
+      summary: API v1 health
+      description: Preferred health endpoint for v1 clients.
+      tags:
+        - Health
+      parameters: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+      operationId: getV1Health
+      security: []
+  /api/v1/auth/signup:
+    post:
+      summary: Sign up
+      description: Sign up
+      tags: &a1
+        - Authentication
+      parameters: &a2 []
+      responses: &a3
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: signup
+      security: &a4 []
+      requestBody: &a5
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+  /api/auth/signup:
+    post:
+      summary: Sign up
+      description: |-
+        Sign up
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a1
+      parameters: *a2
+      responses: *a3
+      operationId: signup
+      security: *a4
+      requestBody: *a5
+      x-deprecated-prefer: Use /api/v1signup
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      description: "Returns JWT. Rate limit: 10/min."
+      tags: &a6
+        - Authentication
+      parameters: &a7 []
+      responses: &a8
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: login
+      security: &a9 []
+      requestBody: &a10
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+  /api/auth/login:
+    post:
+      summary: Login
+      description: |-
+        Returns JWT. Rate limit: 10/min.
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a6
+      parameters: *a7
+      responses: *a8
+      operationId: login
+      security: *a9
+      requestBody: *a10
+      x-deprecated-prefer: Use /api/v1login
+  /api/v1/auth/forgot-password:
+    post:
+      summary: Forgot password
+      description: Forgot password
+      tags: &a11
+        - Authentication
+      parameters: &a12 []
+      responses: &a13
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: forgotPassword
+      security: &a14 []
+      requestBody: &a15
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+  /api/auth/forgot-password:
+    post:
+      summary: Forgot password
+      description: |-
+        Forgot password
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a11
+      parameters: *a12
+      responses: *a13
+      operationId: forgotPassword
+      security: *a14
+      requestBody: *a15
+      x-deprecated-prefer: Use /api/v1forgotPassword
+  /api/v1/auth/reset-password/{resetToken}:
+    post:
+      summary: Reset password
+      description: Reset password
+      tags: &a16
+        - Authentication
+      parameters: &a17
+        - name: resetToken
+          in: path
+          required: true
+          description: Password reset token
+          schema:
+            type: string
+            example: abc123
+      responses: &a18
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: resetPassword
+      security: &a19 []
+      requestBody: &a20
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+                - confirmPassword
+              properties:
+                password:
+                  type: string
+                  minLength: 6
+                confirmPassword:
+                  type: string
+                  minLength: 6
+  /api/auth/reset-password/{resetToken}:
+    post:
+      summary: Reset password
+      description: |-
+        Reset password
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a16
+      parameters: *a17
+      responses: *a18
+      operationId: resetPassword
+      security: *a19
+      requestBody: *a20
+      x-deprecated-prefer: Use /api/v1resetPassword
+  /api/v1/auth/me:
+    get:
+      summary: Current user
+      description: Current user
+      tags: &a21
+        - Authentication
+      parameters: &a22 []
+      responses: &a23
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getCurrentUser
+      security: &a24
+        - bearerAuth: []
+  /api/auth/me:
+    get:
+      summary: Current user
+      description: |-
+        Current user
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a21
+      parameters: *a22
+      responses: *a23
+      operationId: getCurrentUser
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getCurrentUser
+  /api/v1/itineraries:
+    get:
+      summary: List trips
+      description: List trips
+      tags: &a25
+        - Trips
+      parameters: &a26
+        - name: destination
+          in: query
+          required: false
+          description: Filter by destination
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          description: Free-text search
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Page size
+          schema:
+            type: integer
+            default: 10
+      responses: &a27
+        "200":
+          description: Paginated trips
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Trip"
+      operationId: listItineraries
+      security: *a24
+    post:
+      summary: Create trip
+      description: JWT optional via optionalProtect but recommended. Creates itinerary
+        with days/activities.
+      tags: &a28
+        - Trips
+      parameters: &a29 []
+      responses: &a30
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Trip"
+      operationId: createItinerary
+      security: *a24
+      requestBody: &a31
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Trip"
+            example:
+              title: Tokyo Spring Escape
+              destination: Tokyo, Japan
+              numberOfNights: 3
+              description: Cherry blossoms and city walks
+              days:
+                - dayNumber: 1
+                  hotel:
+                    name: Park Hotel
+                    location: Shinjuku
+                  activities:
+                    - name: Senso-ji
+                      location: Asakusa
+                      description: Visit the temple
+                      category: sightseeing
+  /api/itineraries:
+    get:
+      summary: List trips
+      description: |-
+        List trips
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a25
+      parameters: *a26
+      responses: *a27
+      operationId: listItineraries
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listItineraries
+    post:
+      summary: Create trip
+      description: >-
+        JWT optional via optionalProtect but recommended. Creates itinerary with
+        days/activities.
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a28
+      parameters: *a29
+      responses: *a30
+      operationId: createItinerary
+      security: *a24
+      requestBody: *a31
+      x-deprecated-prefer: Use /api/v1createItinerary
+  /api/v1/itineraries/suggestions:
+    get:
+      summary: Search suggestions
+      description: Search suggestions
+      tags: &a32
+        - Trips
+      parameters: &a33
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+      responses: &a34
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getSearchSuggestions
+      security: *a24
+  /api/itineraries/suggestions:
+    get:
+      summary: Search suggestions
+      description: |-
+        Search suggestions
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a32
+      parameters: *a33
+      responses: *a34
+      operationId: getSearchSuggestions
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getSearchSuggestions
+  /api/v1/itineraries/saved:
+    get:
+      summary: Saved trips
+      description: Saved trips
+      tags: &a35
+        - Trips
+      parameters: &a36 []
+      responses: &a37
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getSavedItineraries
+      security: *a24
+  /api/itineraries/saved:
+    get:
+      summary: Saved trips
+      description: |-
+        Saved trips
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a35
+      parameters: *a36
+      responses: *a37
+      operationId: getSavedItineraries
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getSavedItineraries
+  /api/v1/itineraries/saved/mine:
+    get:
+      summary: My saved trips
+      description: My saved trips
+      tags: &a38
+        - Trips
+      parameters: &a39 []
+      responses: &a40
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getSavedItinerariesMine
+      security: *a24
+  /api/itineraries/saved/mine:
+    get:
+      summary: My saved trips
+      description: |-
+        My saved trips
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a38
+      parameters: *a39
+      responses: *a40
+      operationId: getSavedItinerariesMine
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getSavedItinerariesMine
+  /api/v1/itineraries/{id}:
+    get:
+      summary: Get trip
+      description: Get trip
+      tags: &a41
+        - Trips
+      parameters: &a42
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a43
+        "200":
+          description: Trip
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Trip"
+      operationId: getItinerary
+      security: *a24
+    put:
+      summary: Update trip
+      description: Update trip
+      tags: &a44
+        - Trips
+      parameters: &a45
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a46
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: updateItinerary
+      security: *a24
+      requestBody: &a47
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Trip"
+    delete:
+      summary: Delete trip
+      description: Delete trip
+      tags: &a48
+        - Trips
+      parameters: &a49
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a50
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: deleteItinerary
+  /api/itineraries/{id}:
+    get:
+      summary: Get trip
+      description: |-
+        Get trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a41
+      parameters: *a42
+      responses: *a43
+      operationId: getItinerary
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getItinerary
+    put:
+      summary: Update trip
+      description: |-
+        Update trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a44
+      parameters: *a45
+      responses: *a46
+      operationId: updateItinerary
+      security: *a24
+      requestBody: *a47
+      x-deprecated-prefer: Use /api/v1updateItinerary
+    delete:
+      summary: Delete trip
+      description: |-
+        Delete trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a48
+      parameters: *a49
+      responses: *a50
+      operationId: deleteItinerary
+      x-deprecated-prefer: Use /api/v1deleteItinerary
+  /api/v1/itineraries/{id}/save:
+    post:
+      summary: Favorite trip
+      description: Favorite trip
+      tags: &a51
+        - Trips
+      parameters: &a52
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a53
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: saveItinerary
+      security: *a24
+    delete:
+      summary: Unfavorite trip
+      description: Unfavorite trip
+      tags: &a54
+        - Trips
+      parameters: &a55
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a56
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: unsaveItinerary
+      security: *a24
+  /api/itineraries/{id}/save:
+    post:
+      summary: Favorite trip
+      description: |-
+        Favorite trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a51
+      parameters: *a52
+      responses: *a53
+      operationId: saveItinerary
+      security: *a24
+      x-deprecated-prefer: Use /api/v1saveItinerary
+    delete:
+      summary: Unfavorite trip
+      description: |-
+        Unfavorite trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a54
+      parameters: *a55
+      responses: *a56
+      operationId: unsaveItinerary
+      security: *a24
+      x-deprecated-prefer: Use /api/v1unsaveItinerary
+  /api/v1/itineraries/{id}/collaborate/enable:
+    post:
+      summary: Enable collaboration
+      description: Enable collaboration
+      tags: &a57
+        - Trips
+      parameters: &a58
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a59
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: enableCollaboration
+      security: *a24
+  /api/itineraries/{id}/collaborate/enable:
+    post:
+      summary: Enable collaboration
+      description: |-
+        Enable collaboration
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a57
+      parameters: *a58
+      responses: *a59
+      operationId: enableCollaboration
+      security: *a24
+      x-deprecated-prefer: Use /api/v1enableCollaboration
+  /api/v1/itineraries/{id}/collaborate/join:
+    post:
+      summary: Join collaboration
+      description: Join collaboration
+      tags: &a60
+        - Trips
+      parameters: &a61
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a62
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: joinCollaboration
+      security: *a24
+      requestBody: &a63
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+  /api/itineraries/{id}/collaborate/join:
+    post:
+      summary: Join collaboration
+      description: |-
+        Join collaboration
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a60
+      parameters: *a61
+      responses: *a62
+      operationId: joinCollaboration
+      security: *a24
+      requestBody: *a63
+      x-deprecated-prefer: Use /api/v1joinCollaboration
+  /api/v1/itineraries/{id}/optimize:
+    post:
+      summary: AI optimize schedule
+      description: AI optimize schedule
+      tags: &a64
+        - Trips
+        - AI
+      parameters: &a65
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a66
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: optimizeItinerary
+      security: *a24
+  /api/itineraries/{id}/optimize:
+    post:
+      summary: AI optimize schedule
+      description: |-
+        AI optimize schedule
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a64
+      parameters: *a65
+      responses: *a66
+      operationId: optimizeItinerary
+      security: *a24
+      x-deprecated-prefer: Use /api/v1optimizeItinerary
+  /api/v1/itineraries/{id}/pdf:
+    get:
+      summary: Export trip PDF
+      description: Export trip PDF
+      tags: &a67
+        - Trips
+      parameters: &a68
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a69
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: exportItineraryPdf
+      security: &a70 []
+  /api/itineraries/{id}/pdf:
+    get:
+      summary: Export trip PDF
+      description: |-
+        Export trip PDF
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a67
+      parameters: *a68
+      responses: *a69
+      operationId: exportItineraryPdf
+      security: *a70
+      x-deprecated-prefer: Use /api/v1exportItineraryPdf
+  /api/v1/itineraries/{id}/expenses:
+    get:
+      summary: List expenses
+      description: List expenses
+      tags: &a71
+        - Expenses
+      parameters: &a72
+        - name: id
+          in: path
+          required: true
+          description: Trip ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a73
+        "200":
+          description: Expenses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Expense"
+      operationId: listExpenses
+      security: *a24
+    post:
+      summary: Add expense
+      description: Add expense
+      tags: &a74
+        - Expenses
+      parameters: &a75
+        - name: id
+          in: path
+          required: true
+          description: Trip ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a76
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: addExpense
+      security: *a24
+      requestBody: &a77
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+  /api/itineraries/{id}/expenses:
+    get:
+      summary: List expenses
+      description: |-
+        List expenses
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a71
+      parameters: *a72
+      responses: *a73
+      operationId: listExpenses
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listExpenses
+    post:
+      summary: Add expense
+      description: |-
+        Add expense
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a74
+      parameters: *a75
+      responses: *a76
+      operationId: addExpense
+      security: *a24
+      requestBody: *a77
+      x-deprecated-prefer: Use /api/v1addExpense
+  /api/v1/itineraries/{id}/expenses/{expenseId}:
+    put:
+      summary: Update expense
+      description: Update expense
+      tags: &a78
+        - Expenses
+      parameters: &a79
+        - name: id
+          in: path
+          required: true
+          description: Trip ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+        - name: expenseId
+          in: path
+          required: true
+          description: Expense ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a80
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: updateExpense
+      security: *a24
+      requestBody: &a81
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+    delete:
+      summary: Delete expense
+      description: Delete expense
+      tags: &a82
+        - Expenses
+      parameters: &a83
+        - name: id
+          in: path
+          required: true
+          description: Trip ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+        - name: expenseId
+          in: path
+          required: true
+          description: Expense ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a84
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: deleteExpense
+      security: *a24
+  /api/itineraries/{id}/expenses/{expenseId}:
+    put:
+      summary: Update expense
+      description: |-
+        Update expense
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a78
+      parameters: *a79
+      responses: *a80
+      operationId: updateExpense
+      security: *a24
+      requestBody: *a81
+      x-deprecated-prefer: Use /api/v1updateExpense
+    delete:
+      summary: Delete expense
+      description: |-
+        Delete expense
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a82
+      parameters: *a83
+      responses: *a84
+      operationId: deleteExpense
+      security: *a24
+      x-deprecated-prefer: Use /api/v1deleteExpense
+  /api/v1/itineraries/{id}/expenses/{expenseId}/duplicate:
+    post:
+      summary: Duplicate expense
+      description: Duplicate expense
+      tags: &a85
+        - Expenses
+      parameters: &a86
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+        - name: expenseId
+          in: path
+          required: true
+          description: expenseId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a87
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: duplicateExpense
+      security: *a24
+  /api/itineraries/{id}/expenses/{expenseId}/duplicate:
+    post:
+      summary: Duplicate expense
+      description: |-
+        Duplicate expense
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a85
+      parameters: *a86
+      responses: *a87
+      operationId: duplicateExpense
+      security: *a24
+      x-deprecated-prefer: Use /api/v1duplicateExpense
+  /api/v1/itineraries/{id}/expenses/export/csv:
+    get:
+      summary: Export expenses CSV
+      description: Export expenses CSV
+      tags: &a88
+        - Expenses
+      parameters: &a89
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a90
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: exportExpensesCsv
+      security: *a24
+  /api/itineraries/{id}/expenses/export/csv:
+    get:
+      summary: Export expenses CSV
+      description: |-
+        Export expenses CSV
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a88
+      parameters: *a89
+      responses: *a90
+      operationId: exportExpensesCsv
+      security: *a24
+      x-deprecated-prefer: Use /api/v1exportExpensesCsv
+  /api/v1/itineraries/{id}/expenses/export/pdf:
+    get:
+      summary: Export expenses PDF
+      description: Export expenses PDF
+      tags: &a91
+        - Expenses
+      parameters: &a92
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a93
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: exportExpensesPdf
+      security: *a24
+  /api/itineraries/{id}/expenses/export/pdf:
+    get:
+      summary: Export expenses PDF
+      description: |-
+        Export expenses PDF
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a91
+      parameters: *a92
+      responses: *a93
+      operationId: exportExpensesPdf
+      security: *a24
+      x-deprecated-prefer: Use /api/v1exportExpensesPdf
+  /api/v1/bookings:
+    get:
+      summary: List bookings
+      description: List bookings
+      tags: &a94
+        - Bookings
+      parameters: &a95 []
+      responses: &a96
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: listBookings
+      security: *a24
+    post:
+      summary: Create booking
+      description: Create booking
+      tags: &a97
+        - Bookings
+      parameters: &a98 []
+      responses: &a99
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      operationId: createBooking
+      security: *a24
+      requestBody: &a100
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+  /api/bookings:
+    get:
+      summary: List bookings
+      description: |-
+        List bookings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a94
+      parameters: *a95
+      responses: *a96
+      operationId: listBookings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listBookings
+    post:
+      summary: Create booking
+      description: |-
+        Create booking
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a97
+      parameters: *a98
+      responses: *a99
+      operationId: createBooking
+      security: *a24
+      requestBody: *a100
+      x-deprecated-prefer: Use /api/v1createBooking
+  /api/v1/bookings/dashboard:
+    get:
+      summary: Bookings dashboard
+      description: Bookings dashboard
+      tags: &a101
+        - Bookings
+      parameters: &a102 []
+      responses: &a103
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: bookingsDashboard
+      security: *a24
+  /api/bookings/dashboard:
+    get:
+      summary: Bookings dashboard
+      description: |-
+        Bookings dashboard
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a101
+      parameters: *a102
+      responses: *a103
+      operationId: bookingsDashboard
+      security: *a24
+      x-deprecated-prefer: Use /api/v1bookingsDashboard
+  /api/v1/bookings/upcoming:
+    get:
+      summary: Upcoming bookings
+      description: Upcoming bookings
+      tags: &a104
+        - Bookings
+      parameters: &a105 []
+      responses: &a106
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: upcomingBookings
+      security: *a24
+  /api/bookings/upcoming:
+    get:
+      summary: Upcoming bookings
+      description: |-
+        Upcoming bookings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a104
+      parameters: *a105
+      responses: *a106
+      operationId: upcomingBookings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1upcomingBookings
+  /api/v1/bookings/search:
+    get:
+      summary: Search bookings
+      description: Search bookings
+      tags: &a107
+        - Bookings
+      parameters: &a108
+        - name: q
+          in: query
+          required: false
+          description: Search query
+          schema:
+            type: string
+      responses: &a109
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchBookings
+      security: *a24
+  /api/bookings/search:
+    get:
+      summary: Search bookings
+      description: |-
+        Search bookings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a107
+      parameters: *a108
+      responses: *a109
+      operationId: searchBookings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1searchBookings
+  /api/v1/bookings/{id}:
+    get:
+      summary: Get booking
+      description: Get booking
+      tags: &a110
+        - Bookings
+      parameters: &a111
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a112
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getBooking
+      security: *a24
+    put:
+      summary: Update booking
+      description: Update booking
+      tags: &a113
+        - Bookings
+      parameters: &a114
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a115
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: updateBooking
+      security: *a24
+      requestBody: &a116
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+    delete:
+      summary: Delete booking
+      description: Delete booking
+      tags: &a117
+        - Bookings
+      parameters: &a118
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a119
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: deleteBooking
+      security: *a24
+  /api/bookings/{id}:
+    get:
+      summary: Get booking
+      description: |-
+        Get booking
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a110
+      parameters: *a111
+      responses: *a112
+      operationId: getBooking
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getBooking
+    put:
+      summary: Update booking
+      description: |-
+        Update booking
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a113
+      parameters: *a114
+      responses: *a115
+      operationId: updateBooking
+      security: *a24
+      requestBody: *a116
+      x-deprecated-prefer: Use /api/v1updateBooking
+    delete:
+      summary: Delete booking
+      description: |-
+        Delete booking
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a117
+      parameters: *a118
+      responses: *a119
+      operationId: deleteBooking
+      security: *a24
+      x-deprecated-prefer: Use /api/v1deleteBooking
+  /api/v1/bookings/{id}/convert-expense:
+    post:
+      summary: Convert booking to expense
+      description: Convert booking to expense
+      tags: &a120
+        - Bookings
+        - Expenses
+      parameters: &a121
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a122
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: convertBookingToExpense
+      security: *a24
+  /api/bookings/{id}/convert-expense:
+    post:
+      summary: Convert booking to expense
+      description: |-
+        Convert booking to expense
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a120
+      parameters: *a121
+      responses: *a122
+      operationId: convertBookingToExpense
+      security: *a24
+      x-deprecated-prefer: Use /api/v1convertBookingToExpense
+  /api/v1/trips/{id}/bookings:
+    get:
+      summary: Trip bookings
+      description: Trip bookings
+      tags: &a123
+        - Bookings
+        - Trips
+      parameters: &a124
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a125
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: tripBookings
+      security: *a24
+  /api/trips/{id}/bookings:
+    get:
+      summary: Trip bookings
+      description: |-
+        Trip bookings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a123
+      parameters: *a124
+      responses: *a125
+      operationId: tripBookings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1tripBookings
+  /api/v1/trips/{id}/bookings/timeline:
+    get:
+      summary: Trip booking timeline
+      description: Trip booking timeline
+      tags: &a126
+        - Bookings
+      parameters: &a127
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a128
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: tripBookingTimeline
+      security: *a24
+  /api/trips/{id}/bookings/timeline:
+    get:
+      summary: Trip booking timeline
+      description: |-
+        Trip booking timeline
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a126
+      parameters: *a127
+      responses: *a128
+      operationId: tripBookingTimeline
+      security: *a24
+      x-deprecated-prefer: Use /api/v1tripBookingTimeline
+  /api/v1/documents:
+    get:
+      summary: List documents
+      description: List documents
+      tags: &a129
+        - Documents
+      parameters: &a130 []
+      responses: &a131
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: listDocuments
+      security: *a24
+    post:
+      summary: Upload document
+      description: multipart/form-data with file + metadata. Never returns file bytes
+        in list responses.
+      tags: &a132
+        - Documents
+      parameters: &a133 []
+      responses: &a134
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: uploadDocument
+      security: *a24
+      requestBody: &a135
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                title:
+                  type: string
+                documentType:
+                  type: string
+                tripId:
+                  type: string
+                country:
+                  type: string
+  /api/documents:
+    get:
+      summary: List documents
+      description: |-
+        List documents
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a129
+      parameters: *a130
+      responses: *a131
+      operationId: listDocuments
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listDocuments
+    post:
+      summary: Upload document
+      description: >-
+        multipart/form-data with file + metadata. Never returns file bytes in
+        list responses.
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a132
+      parameters: *a133
+      responses: *a134
+      operationId: uploadDocument
+      security: *a24
+      requestBody: *a135
+      x-deprecated-prefer: Use /api/v1uploadDocument
+  /api/v1/documents/{id}:
+    get:
+      summary: Get document metadata
+      description: Get document metadata
+      tags: &a136
+        - Documents
+      parameters: &a137
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a138
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getDocument
+      security: *a24
+    put:
+      summary: Update document
+      description: Update document
+      tags: &a139
+        - Documents
+      parameters: &a140
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a141
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: updateDocument
+      security: *a24
+    delete:
+      summary: Delete document
+      description: Delete document
+      tags: &a142
+        - Documents
+      parameters: &a143
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a144
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: deleteDocument
+      security: *a24
+  /api/documents/{id}:
+    get:
+      summary: Get document metadata
+      description: |-
+        Get document metadata
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a136
+      parameters: *a137
+      responses: *a138
+      operationId: getDocument
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getDocument
+    put:
+      summary: Update document
+      description: |-
+        Update document
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a139
+      parameters: *a140
+      responses: *a141
+      operationId: updateDocument
+      security: *a24
+      x-deprecated-prefer: Use /api/v1updateDocument
+    delete:
+      summary: Delete document
+      description: |-
+        Delete document
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a142
+      parameters: *a143
+      responses: *a144
+      operationId: deleteDocument
+      security: *a24
+      x-deprecated-prefer: Use /api/v1deleteDocument
+  /api/v1/documents/{id}/download:
+    get:
+      summary: Download document
+      description: Download document
+      tags: &a145
+        - Documents
+      parameters: &a146
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a147
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: downloadDocument
+      security: *a24
+  /api/documents/{id}/download:
+    get:
+      summary: Download document
+      description: |-
+        Download document
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a145
+      parameters: *a146
+      responses: *a147
+      operationId: downloadDocument
+      security: *a24
+      x-deprecated-prefer: Use /api/v1downloadDocument
+  /api/v1/documents/search:
+    get:
+      summary: Search documents
+      description: Search documents
+      tags: &a148
+        - Documents
+      parameters: &a149
+        - name: q
+          in: query
+          required: false
+          description: Query
+          schema:
+            type: string
+      responses: &a150
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchDocuments
+      security: *a24
+  /api/documents/search:
+    get:
+      summary: Search documents
+      description: |-
+        Search documents
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a148
+      parameters: *a149
+      responses: *a150
+      operationId: searchDocuments
+      security: *a24
+      x-deprecated-prefer: Use /api/v1searchDocuments
+  /api/v1/documents/stats:
+    get:
+      summary: Document stats
+      description: Document stats
+      tags: &a151
+        - Documents
+      parameters: &a152 []
+      responses: &a153
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: documentStats
+      security: *a24
+  /api/documents/stats:
+    get:
+      summary: Document stats
+      description: |-
+        Document stats
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a151
+      parameters: *a152
+      responses: *a153
+      operationId: documentStats
+      security: *a24
+      x-deprecated-prefer: Use /api/v1documentStats
+  /api/v1/notifications:
+    get:
+      summary: List notifications
+      description: List notifications
+      tags: &a154
+        - Notifications
+      parameters: &a155 []
+      responses: &a156
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  unreadCount:
+                    type: integer
+      operationId: listNotifications
+      security: *a24
+  /api/notifications:
+    get:
+      summary: List notifications
+      description: |-
+        List notifications
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a154
+      parameters: *a155
+      responses: *a156
+      operationId: listNotifications
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listNotifications
+  /api/v1/notifications/unread-count:
+    get:
+      summary: Unread notification count
+      description: Unread notification count
+      tags: &a157
+        - Notifications
+      parameters: &a158 []
+      responses: &a159
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: unreadCount
+      security: *a24
+  /api/notifications/unread-count:
+    get:
+      summary: Unread notification count
+      description: |-
+        Unread notification count
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a157
+      parameters: *a158
+      responses: *a159
+      operationId: unreadCount
+      security: *a24
+      x-deprecated-prefer: Use /api/v1unreadCount
+  /api/v1/notifications/read-all:
+    post:
+      summary: Mark all read
+      description: Mark all read
+      tags: &a160
+        - Notifications
+      parameters: &a161 []
+      responses: &a162
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: markAllRead
+      security: *a24
+  /api/notifications/read-all:
+    post:
+      summary: Mark all read
+      description: |-
+        Mark all read
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a160
+      parameters: *a161
+      responses: *a162
+      operationId: markAllRead
+      security: *a24
+      x-deprecated-prefer: Use /api/v1markAllRead
+  /api/v1/notifications/read/{id}:
+    post:
+      summary: Mark one read
+      description: Mark one read
+      tags: &a163
+        - Notifications
+      parameters: &a164
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a165
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: markOneRead
+      security: *a24
+  /api/notifications/read/{id}:
+    post:
+      summary: Mark one read
+      description: |-
+        Mark one read
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a163
+      parameters: *a164
+      responses: *a165
+      operationId: markOneRead
+      security: *a24
+      x-deprecated-prefer: Use /api/v1markOneRead
+  /api/v1/notifications/{id}:
+    delete:
+      summary: Delete notification
+      description: Delete notification
+      tags: &a166
+        - Notifications
+      parameters: &a167
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a168
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: deleteNotification
+      security: *a24
+  /api/notifications/{id}:
+    delete:
+      summary: Delete notification
+      description: |-
+        Delete notification
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a166
+      parameters: *a167
+      responses: *a168
+      operationId: deleteNotification
+      security: *a24
+      x-deprecated-prefer: Use /api/v1deleteNotification
+  /api/v1/notifications/settings:
+    get:
+      summary: Notification settings
+      description: Notification settings
+      tags: &a169
+        - Notifications
+      parameters: &a170 []
+      responses: &a171
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getNotificationSettings
+      security: *a24
+    put:
+      summary: Update notification settings
+      description: Update notification settings
+      tags: &a172
+        - Notifications
+      parameters: &a173 []
+      responses: &a174
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: updateNotificationSettings
+      security: *a24
+  /api/notifications/settings:
+    get:
+      summary: Notification settings
+      description: |-
+        Notification settings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a169
+      parameters: *a170
+      responses: *a171
+      operationId: getNotificationSettings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getNotificationSettings
+    put:
+      summary: Update notification settings
+      description: |-
+        Update notification settings
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a172
+      parameters: *a173
+      responses: *a174
+      operationId: updateNotificationSettings
+      security: *a24
+      x-deprecated-prefer: Use /api/v1updateNotificationSettings
+  /api/v1/weather:
+    get:
+      summary: Current / day weather
+      description: Cached ~10 minutes. Public rate limit 60/min.
+      tags: &a175
+        - Weather
+      parameters: &a176
+        - name: destination
+          in: query
+          required: true
+          description: Place name
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+      responses: &a177
+        "200":
+          description: Weather
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Weather"
+      operationId: getWeather
+      security: &a178 []
+  /api/weather:
+    get:
+      summary: Current / day weather
+      description: |-
+        Cached ~10 minutes. Public rate limit 60/min.
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a175
+      parameters: *a176
+      responses: *a177
+      operationId: getWeather
+      security: *a178
+      x-deprecated-prefer: Use /api/v1getWeather
+  /api/v1/weather/forecast:
+    get:
+      summary: Weather forecast
+      description: Weather forecast
+      tags: &a179
+        - Weather
+      parameters: &a180
+        - name: destination
+          in: query
+          required: true
+          description: Place name
+          schema:
+            type: string
+        - name: days
+          in: query
+          required: false
+          description: Number of days
+          schema:
+            type: integer
+            default: 5
+      responses: &a181
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getForecast
+      security: &a182 []
+  /api/weather/forecast:
+    get:
+      summary: Weather forecast
+      description: |-
+        Weather forecast
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a179
+      parameters: *a180
+      responses: *a181
+      operationId: getForecast
+      security: *a182
+      x-deprecated-prefer: Use /api/v1getForecast
+  /api/v1/weather/places/{tripId}:
+    get:
+      summary: Per-place weather for trip
+      description: Per-place weather for trip
+      tags: &a183
+        - Weather
+      parameters: &a184
+        - name: tripId
+          in: path
+          required: true
+          description: tripId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a185
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getPlaceWeather
+      security: &a186 []
+  /api/weather/places/{tripId}:
+    get:
+      summary: Per-place weather for trip
+      description: |-
+        Per-place weather for trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a183
+      parameters: *a184
+      responses: *a185
+      operationId: getPlaceWeather
+      security: *a186
+      x-deprecated-prefer: Use /api/v1getPlaceWeather
+  /api/v1/recommendations:
+    get:
+      summary: Recommendations
+      description: Recommendations
+      tags: &a187
+        - Recommendations
+      parameters: &a188 []
+      responses: &a189
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getRecommendations
+      security: &a190 []
+  /api/recommendations:
+    get:
+      summary: Recommendations
+      description: |-
+        Recommendations
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a187
+      parameters: *a188
+      responses: *a189
+      operationId: getRecommendations
+      security: *a190
+      x-deprecated-prefer: Use /api/v1getRecommendations
+  /api/v1/recommendations/nearby:
+    get:
+      summary: Nearby places (maps)
+      description: Hotels, restaurants, attractions, hospitals, cafes near coordinates
+        or destination.
+      tags: &a191
+        - Maps
+        - Recommendations
+      parameters: &a192
+        - name: latitude
+          in: query
+          required: false
+          description: Latitude
+          schema:
+            type: number
+        - name: longitude
+          in: query
+          required: false
+          description: Longitude
+          schema:
+            type: number
+        - name: destination
+          in: query
+          required: false
+          description: Destination name
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          description: Category
+          schema:
+            type: string
+            enum:
+              - restaurant
+              - cafe
+              - attraction
+              - hospital
+              - atm
+      responses: &a193
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: nearbyPlaces
+      security: &a194 []
+    post:
+      summary: Nearby places (POST body)
+      description: Nearby places (POST body)
+      tags: &a195
+        - Maps
+        - Recommendations
+      parameters: &a196 []
+      responses: &a197
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: nearbyPlacesPost
+      security: &a198 []
+  /api/recommendations/nearby:
+    get:
+      summary: Nearby places (maps)
+      description: >-
+        Hotels, restaurants, attractions, hospitals, cafes near coordinates or
+        destination.
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a191
+      parameters: *a192
+      responses: *a193
+      operationId: nearbyPlaces
+      security: *a194
+      x-deprecated-prefer: Use /api/v1nearbyPlaces
+    post:
+      summary: Nearby places (POST body)
+      description: |-
+        Nearby places (POST body)
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a195
+      parameters: *a196
+      responses: *a197
+      operationId: nearbyPlacesPost
+      security: *a198
+      x-deprecated-prefer: Use /api/v1nearbyPlacesPost
+  /api/v1/recommendations/nearby/categories:
+    get:
+      summary: Nearby categories
+      description: Nearby categories
+      tags: &a199
+        - Maps
+      parameters: &a200 []
+      responses: &a201
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: nearbyCategories
+      security: &a202 []
+  /api/recommendations/nearby/categories:
+    get:
+      summary: Nearby categories
+      description: |-
+        Nearby categories
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a199
+      parameters: *a200
+      responses: *a201
+      operationId: nearbyCategories
+      security: *a202
+      x-deprecated-prefer: Use /api/v1nearbyCategories
+  /api/v1/analytics/dashboard:
+    get:
+      summary: Analytics dashboard
+      description: Analytics dashboard
+      tags: &a203
+        - Analytics
+      parameters: &a204 []
+      responses: &a205
+        "200":
+          description: Dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/Analytics"
+      operationId: analyticsDashboard
+      security: *a24
+  /api/analytics/dashboard:
+    get:
+      summary: Analytics dashboard
+      description: |-
+        Analytics dashboard
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a203
+      parameters: *a204
+      responses: *a205
+      operationId: analyticsDashboard
+      security: *a24
+      x-deprecated-prefer: Use /api/v1analyticsDashboard
+  /api/v1/analytics/travel-score:
+    get:
+      summary: Travel score
+      description: Travel score
+      tags: &a206
+        - Analytics
+      parameters: &a207 []
+      responses: &a208
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: travelScore
+      security: *a24
+  /api/analytics/travel-score:
+    get:
+      summary: Travel score
+      description: |-
+        Travel score
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a206
+      parameters: *a207
+      responses: *a208
+      operationId: travelScore
+      security: *a24
+      x-deprecated-prefer: Use /api/v1travelScore
+  /api/v1/analytics/recalculate:
+    post:
+      summary: Recalculate analytics
+      description: Recalculate analytics
+      tags: &a209
+        - Analytics
+      parameters: &a210 []
+      responses: &a211
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: recalculateAnalytics
+      security: *a24
+  /api/analytics/recalculate:
+    post:
+      summary: Recalculate analytics
+      description: |-
+        Recalculate analytics
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a209
+      parameters: *a210
+      responses: *a211
+      operationId: recalculateAnalytics
+      security: *a24
+      x-deprecated-prefer: Use /api/v1recalculateAnalytics
+  /api/v1/analytics/export/csv:
+    get:
+      summary: Export analytics CSV
+      description: Export analytics CSV
+      tags: &a212
+        - Analytics
+      parameters: &a213 []
+      responses: &a214
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: exportAnalyticsCsv
+      security: *a24
+  /api/analytics/export/csv:
+    get:
+      summary: Export analytics CSV
+      description: |-
+        Export analytics CSV
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a212
+      parameters: *a213
+      responses: *a214
+      operationId: exportAnalyticsCsv
+      security: *a24
+      x-deprecated-prefer: Use /api/v1exportAnalyticsCsv
+  /api/v1/analytics/export/pdf:
+    get:
+      summary: Export analytics PDF
+      description: Export analytics PDF
+      tags: &a215
+        - Analytics
+      parameters: &a216 []
+      responses: &a217
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: exportAnalyticsPdf
+      security: *a24
+  /api/analytics/export/pdf:
+    get:
+      summary: Export analytics PDF
+      description: |-
+        Export analytics PDF
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a215
+      parameters: *a216
+      responses: *a217
+      operationId: exportAnalyticsPdf
+      security: *a24
+      x-deprecated-prefer: Use /api/v1exportAnalyticsPdf
+  /api/v1/ai/itinerary:
+    post:
+      summary: Generate personalized itinerary
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a218
+        - AI
+      parameters: &a219 []
+      responses: &a220
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiGenerateItinerary
+      security: *a24
+      requestBody: &a221
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/itinerary:
+    post:
+      summary: Generate personalized itinerary
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a218
+      parameters: *a219
+      responses: *a220
+      operationId: aiGenerateItinerary
+      security: *a24
+      requestBody: *a221
+      x-deprecated-prefer: Use /api/v1aiGenerateItinerary
+  /api/v1/ai/enrich-descriptions:
+    post:
+      summary: Enrich itinerary descriptions
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a222
+        - AI
+      parameters: &a223 []
+      responses: &a224
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiEnrichDescriptions
+      security: *a24
+      requestBody: &a225
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/enrich-descriptions:
+    post:
+      summary: Enrich itinerary descriptions
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a222
+      parameters: *a223
+      responses: *a224
+      operationId: aiEnrichDescriptions
+      security: *a24
+      requestBody: *a225
+      x-deprecated-prefer: Use /api/v1aiEnrichDescriptions
+  /api/v1/ai/suggest-day:
+    post:
+      summary: Suggest day activities
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a226
+        - AI
+      parameters: &a227 []
+      responses: &a228
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiSuggestDay
+      security: *a24
+      requestBody: &a229
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/suggest-day:
+    post:
+      summary: Suggest day activities
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a226
+      parameters: *a227
+      responses: *a228
+      operationId: aiSuggestDay
+      security: *a24
+      requestBody: *a229
+      x-deprecated-prefer: Use /api/v1aiSuggestDay
+  /api/v1/ai/suggest-highlights:
+    post:
+      summary: Suggest highlights
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a230
+        - AI
+      parameters: &a231 []
+      responses: &a232
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiSuggestHighlights
+      security: *a24
+      requestBody: &a233
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/suggest-highlights:
+    post:
+      summary: Suggest highlights
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a230
+      parameters: *a231
+      responses: *a232
+      operationId: aiSuggestHighlights
+      security: *a24
+      requestBody: *a233
+      x-deprecated-prefer: Use /api/v1aiSuggestHighlights
+  /api/v1/ai/trip-summary:
+    post:
+      summary: AI trip summary
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a234
+        - AI
+      parameters: &a235 []
+      responses: &a236
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiTripSummary
+      security: *a24
+      requestBody: &a237
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/trip-summary:
+    post:
+      summary: AI trip summary
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a234
+      parameters: *a235
+      responses: *a236
+      operationId: aiTripSummary
+      security: *a24
+      requestBody: *a237
+      x-deprecated-prefer: Use /api/v1aiTripSummary
+  /api/v1/ai/booking-query:
+    post:
+      summary: AI booking Q&A
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a238
+        - AI
+      parameters: &a239 []
+      responses: &a240
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiBookingQuery
+      security: *a24
+      requestBody: &a241
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/booking-query:
+    post:
+      summary: AI booking Q&A
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a238
+      parameters: *a239
+      responses: *a240
+      operationId: aiBookingQuery
+      security: *a24
+      requestBody: *a241
+      x-deprecated-prefer: Use /api/v1aiBookingQuery
+  /api/v1/ai/document-query:
+    post:
+      summary: AI document Q&A
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a242
+        - AI
+      parameters: &a243 []
+      responses: &a244
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiDocumentQuery
+      security: *a24
+      requestBody: &a245
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/document-query:
+    post:
+      summary: AI document Q&A
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a242
+      parameters: *a243
+      responses: *a244
+      operationId: aiDocumentQuery
+      security: *a24
+      requestBody: *a245
+      x-deprecated-prefer: Use /api/v1aiDocumentQuery
+  /api/v1/ai/risk-query:
+    post:
+      summary: AI risk Q&A
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a246
+        - AI
+      parameters: &a247 []
+      responses: &a248
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiRiskQuery
+      security: *a24
+      requestBody: &a249
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/risk-query:
+    post:
+      summary: AI risk Q&A
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a246
+      parameters: *a247
+      responses: *a248
+      operationId: aiRiskQuery
+      security: *a24
+      requestBody: *a249
+      x-deprecated-prefer: Use /api/v1aiRiskQuery
+  /api/v1/ai/flight-query:
+    post:
+      summary: AI flight Q&A
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a250
+        - AI
+      parameters: &a251 []
+      responses: &a252
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiFlightQuery
+      security: *a24
+      requestBody: &a253
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/flight-query:
+    post:
+      summary: AI flight Q&A
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a250
+      parameters: *a251
+      responses: *a252
+      operationId: aiFlightQuery
+      security: *a24
+      requestBody: *a253
+      x-deprecated-prefer: Use /api/v1aiFlightQuery
+  /api/v1/ai/budget-query:
+    post:
+      summary: AI budget Q&A
+      description: "Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed)."
+      tags: &a254
+        - AI
+      parameters: &a255 []
+      responses: &a256
+        "200":
+          description: AI result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: aiBudgetQuery
+      security: *a24
+      requestBody: &a257
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/ai/budget-query:
+    post:
+      summary: AI budget Q&A
+      description: >-
+        Rate limit: 20 requests/hour. Responses may be cached 24h
+        (prompt-hashed).
+
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a254
+      parameters: *a255
+      responses: *a256
+      operationId: aiBudgetQuery
+      security: *a24
+      requestBody: *a257
+      x-deprecated-prefer: Use /api/v1aiBudgetQuery
+  /api/v1/chat:
+    post:
+      summary: Copilot chat
+      description: Copilot chat
+      tags: &a258
+        - Copilot
+        - AI
+      parameters: &a259 []
+      responses: &a260
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: copilotChat
+      security: *a24
+  /api/chat:
+    post:
+      summary: Copilot chat
+      description: |-
+        Copilot chat
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a258
+      parameters: *a259
+      responses: *a260
+      operationId: copilotChat
+      security: *a24
+      x-deprecated-prefer: Use /api/v1copilotChat
+  /api/v1/chat/stream:
+    post:
+      summary: Copilot chat (stream)
+      description: Copilot chat (stream)
+      tags: &a261
+        - Copilot
+        - AI
+      parameters: &a262 []
+      responses: &a263
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: copilotChatStream
+      security: *a24
+  /api/chat/stream:
+    post:
+      summary: Copilot chat (stream)
+      description: |-
+        Copilot chat (stream)
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a261
+      parameters: *a262
+      responses: *a263
+      operationId: copilotChatStream
+      security: *a24
+      x-deprecated-prefer: Use /api/v1copilotChatStream
+  /api/v1/chat/sessions:
+    get:
+      summary: List chat sessions
+      description: List chat sessions
+      tags: &a264
+        - Copilot
+      parameters: &a265 []
+      responses: &a266
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: listChatSessions
+      security: *a24
+    post:
+      summary: Create chat session
+      description: Create chat session
+      tags: &a267
+        - Copilot
+      parameters: &a268 []
+      responses: &a269
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: createChatSession
+      security: *a24
+  /api/chat/sessions:
+    get:
+      summary: List chat sessions
+      description: |-
+        List chat sessions
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a264
+      parameters: *a265
+      responses: *a266
+      operationId: listChatSessions
+      security: *a24
+      x-deprecated-prefer: Use /api/v1listChatSessions
+    post:
+      summary: Create chat session
+      description: |-
+        Create chat session
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a267
+      parameters: *a268
+      responses: *a269
+      operationId: createChatSession
+      security: *a24
+      x-deprecated-prefer: Use /api/v1createChatSession
+  /api/v1/flights/status/{flightNumber}:
+    get:
+      summary: Live flight status
+      description: Live flight status
+      tags: &a270
+        - Flight Tracking
+      parameters: &a271
+        - name: flightNumber
+          in: path
+          required: true
+          description: IATA flight number
+          schema:
+            type: string
+            example: AI101
+      responses: &a272
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: flightStatus
+      security: *a24
+  /api/flights/status/{flightNumber}:
+    get:
+      summary: Live flight status
+      description: |-
+        Live flight status
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a270
+      parameters: *a271
+      responses: *a272
+      operationId: flightStatus
+      security: *a24
+      x-deprecated-prefer: Use /api/v1flightStatus
+  /api/v1/flights/track:
+    post:
+      summary: Start tracking flight
+      description: Start tracking flight
+      tags: &a273
+        - Flight Tracking
+      parameters: &a274 []
+      responses: &a275
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: trackFlight
+      security: *a24
+  /api/flights/track:
+    post:
+      summary: Start tracking flight
+      description: |-
+        Start tracking flight
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a273
+      parameters: *a274
+      responses: *a275
+      operationId: trackFlight
+      security: *a24
+      x-deprecated-prefer: Use /api/v1trackFlight
+  /api/v1/flights/track/{id}:
+    delete:
+      summary: Stop tracking
+      description: Stop tracking
+      tags: &a276
+        - Flight Tracking
+      parameters: &a277
+        - name: id
+          in: path
+          required: true
+          description: id identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a278
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: stopTrack
+      security: *a24
+  /api/flights/track/{id}:
+    delete:
+      summary: Stop tracking
+      description: |-
+        Stop tracking
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a276
+      parameters: *a277
+      responses: *a278
+      operationId: stopTrack
+      security: *a24
+      x-deprecated-prefer: Use /api/v1stopTrack
+  /api/v1/flights/trip/{tripId}:
+    get:
+      summary: Flights for trip
+      description: Flights for trip
+      tags: &a279
+        - Flight Tracking
+      parameters: &a280
+        - name: tripId
+          in: path
+          required: true
+          description: tripId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a281
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: tripFlights
+      security: *a24
+  /api/flights/trip/{tripId}:
+    get:
+      summary: Flights for trip
+      description: |-
+        Flights for trip
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a279
+      parameters: *a280
+      responses: *a281
+      operationId: tripFlights
+      security: *a24
+      x-deprecated-prefer: Use /api/v1tripFlights
+  /api/v1/flights/history:
+    get:
+      summary: Flight tracking history
+      description: Flight tracking history
+      tags: &a282
+        - Flight Tracking
+      parameters: &a283 []
+      responses: &a284
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: flightHistory
+      security: *a24
+  /api/flights/history:
+    get:
+      summary: Flight tracking history
+      description: |-
+        Flight tracking history
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a282
+      parameters: *a283
+      responses: *a284
+      operationId: flightHistory
+      security: *a24
+      x-deprecated-prefer: Use /api/v1flightHistory
+  /api/v1/calendar/status:
+    get:
+      summary: Calendar connection status
+      description: Calendar connection status
+      tags: &a285
+        - Calendar
+      parameters: &a286 []
+      responses: &a287
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: calendarStatus
+      security: *a24
+  /api/calendar/status:
+    get:
+      summary: Calendar connection status
+      description: |-
+        Calendar connection status
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a285
+      parameters: *a286
+      responses: *a287
+      operationId: calendarStatus
+      security: *a24
+      x-deprecated-prefer: Use /api/v1calendarStatus
+  /api/v1/calendar/sync:
+    post:
+      summary: Sync trip to calendar
+      description: Sync trip to calendar
+      tags: &a288
+        - Calendar
+      parameters: &a289 []
+      responses: &a290
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: calendarSync
+      security: *a24
+  /api/calendar/sync:
+    post:
+      summary: Sync trip to calendar
+      description: |-
+        Sync trip to calendar
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a288
+      parameters: *a289
+      responses: *a290
+      operationId: calendarSync
+      security: *a24
+      x-deprecated-prefer: Use /api/v1calendarSync
+  /api/v1/calendar/google/connect:
+    post:
+      summary: Connect Google Calendar
+      description: Connect Google Calendar
+      tags: &a291
+        - Calendar
+      parameters: &a292 []
+      responses: &a293
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: googleConnect
+      security: *a24
+  /api/calendar/google/connect:
+    post:
+      summary: Connect Google Calendar
+      description: |-
+        Connect Google Calendar
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a291
+      parameters: *a292
+      responses: *a293
+      operationId: googleConnect
+      security: *a24
+      x-deprecated-prefer: Use /api/v1googleConnect
+  /api/v1/calendar/outlook/connect:
+    post:
+      summary: Connect Outlook Calendar
+      description: Connect Outlook Calendar
+      tags: &a294
+        - Calendar
+      parameters: &a295 []
+      responses: &a296
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: outlookConnect
+      security: *a24
+  /api/calendar/outlook/connect:
+    post:
+      summary: Connect Outlook Calendar
+      description: |-
+        Connect Outlook Calendar
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a294
+      parameters: *a295
+      responses: *a296
+      operationId: outlookConnect
+      security: *a24
+      x-deprecated-prefer: Use /api/v1outlookConnect
+  /api/v1/packing/generate:
+    post:
+      summary: Generate packing list
+      description: Generate packing list
+      tags: &a297
+        - Packing
+        - AI
+      parameters: &a298 []
+      responses: &a299
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: generatePacking
+      security: *a24
+  /api/packing/generate:
+    post:
+      summary: Generate packing list
+      description: |-
+        Generate packing list
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a297
+      parameters: *a298
+      responses: *a299
+      operationId: generatePacking
+      security: *a24
+      x-deprecated-prefer: Use /api/v1generatePacking
+  /api/v1/packing/{tripId}:
+    get:
+      summary: Get packing list
+      description: Get packing list
+      tags: &a300
+        - Packing
+      parameters: &a301
+        - name: tripId
+          in: path
+          required: true
+          description: tripId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a302
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getPacking
+      security: *a24
+  /api/packing/{tripId}:
+    get:
+      summary: Get packing list
+      description: |-
+        Get packing list
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a300
+      parameters: *a301
+      responses: *a302
+      operationId: getPacking
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getPacking
+  /api/v1/risk/analyze:
+    post:
+      summary: Analyze trip risks
+      description: Analyze trip risks
+      tags: &a303
+        - Risk
+        - AI
+      parameters: &a304 []
+      responses: &a305
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: analyzeRisk
+      security: *a24
+  /api/risk/analyze:
+    post:
+      summary: Analyze trip risks
+      description: |-
+        Analyze trip risks
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a303
+      parameters: *a304
+      responses: *a305
+      operationId: analyzeRisk
+      security: *a24
+      x-deprecated-prefer: Use /api/v1analyzeRisk
+  /api/v1/risk/{tripId}:
+    get:
+      summary: Get trip risks
+      description: Get trip risks
+      tags: &a306
+        - Risk
+      parameters: &a307
+        - name: tripId
+          in: path
+          required: true
+          description: tripId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a308
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getRisks
+      security: *a24
+  /api/risk/{tripId}:
+    get:
+      summary: Get trip risks
+      description: |-
+        Get trip risks
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a306
+      parameters: *a307
+      responses: *a308
+      operationId: getRisks
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getRisks
+  /api/v1/budget/analyze:
+    post:
+      summary: Analyze budget
+      description: Analyze budget
+      tags: &a309
+        - Budget
+        - AI
+      parameters: &a310 []
+      responses: &a311
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: analyzeBudget
+      security: *a24
+  /api/budget/analyze:
+    post:
+      summary: Analyze budget
+      description: |-
+        Analyze budget
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a309
+      parameters: *a310
+      responses: *a311
+      operationId: analyzeBudget
+      security: *a24
+      x-deprecated-prefer: Use /api/v1analyzeBudget
+  /api/v1/budget/{tripId}:
+    get:
+      summary: Budget optimizer state
+      description: Budget optimizer state
+      tags: &a312
+        - Budget
+      parameters: &a313
+        - name: tripId
+          in: path
+          required: true
+          description: tripId identifier
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses: &a314
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getBudget
+      security: *a24
+  /api/budget/{tripId}:
+    get:
+      summary: Budget optimizer state
+      description: |-
+        Budget optimizer state
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a312
+      parameters: *a313
+      responses: *a314
+      operationId: getBudget
+      security: *a24
+      x-deprecated-prefer: Use /api/v1getBudget
+  /api/v1/hotels:
+    get:
+      summary: Search hotels
+      description: Search hotels
+      tags: &a315
+        - Availability
+      parameters: &a316
+        - name: destination
+          in: query
+          required: false
+          description: Destination
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: Date YYYY-MM-DD
+          schema:
+            type: string
+      responses: &a317
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchHotels
+      security: &a318 []
+  /api/hotels:
+    get:
+      summary: Search hotels
+      description: |-
+        Search hotels
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a315
+      parameters: *a316
+      responses: *a317
+      operationId: searchHotels
+      security: *a318
+      x-deprecated-prefer: Use /api/v1searchHotels
+  /api/v1/flights:
+    get:
+      summary: Search flights
+      description: Search flights
+      tags: &a319
+        - Availability
+      parameters: &a320
+        - name: destination
+          in: query
+          required: false
+          description: Destination
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: Date YYYY-MM-DD
+          schema:
+            type: string
+      responses: &a321
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchFlights
+      security: &a322 []
+  /api/flights:
+    get:
+      summary: Search flights
+      description: |-
+        Search flights
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a319
+      parameters: *a320
+      responses: *a321
+      operationId: searchFlights
+      security: *a322
+      x-deprecated-prefer: Use /api/v1searchFlights
+  /api/v1/trains:
+    get:
+      summary: Search trains
+      description: Search trains
+      tags: &a323
+        - Availability
+      parameters: &a324
+        - name: destination
+          in: query
+          required: false
+          description: Destination
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: Date YYYY-MM-DD
+          schema:
+            type: string
+      responses: &a325
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchTrains
+      security: &a326 []
+  /api/trains:
+    get:
+      summary: Search trains
+      description: |-
+        Search trains
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a323
+      parameters: *a324
+      responses: *a325
+      operationId: searchTrains
+      security: *a326
+      x-deprecated-prefer: Use /api/v1searchTrains
+  /api/v1/buses:
+    get:
+      summary: Search buses
+      description: Search buses
+      tags: &a327
+        - Availability
+      parameters: &a328
+        - name: destination
+          in: query
+          required: false
+          description: Destination
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: Date YYYY-MM-DD
+          schema:
+            type: string
+      responses: &a329
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchBuses
+      security: &a330 []
+  /api/buses:
+    get:
+      summary: Search buses
+      description: |-
+        Search buses
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a327
+      parameters: *a328
+      responses: *a329
+      operationId: searchBuses
+      security: *a330
+      x-deprecated-prefer: Use /api/v1searchBuses
+  /api/v1/activities:
+    get:
+      summary: Search activities
+      description: Search activities
+      tags: &a331
+        - Availability
+      parameters: &a332
+        - name: destination
+          in: query
+          required: false
+          description: Destination
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          description: Date YYYY-MM-DD
+          schema:
+            type: string
+      responses: &a333
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: searchActivities
+      security: &a334 []
+  /api/activities:
+    get:
+      summary: Search activities
+      description: |-
+        Search activities
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a331
+      parameters: *a332
+      responses: *a333
+      operationId: searchActivities
+      security: *a334
+      x-deprecated-prefer: Use /api/v1searchActivities
+  /api/v1/blogs:
+    get:
+      summary: List blogs
+      description: List blogs
+      tags: &a335
+        - Blogs
+      parameters: &a336 []
+      responses: &a337
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: listBlogs
+      security: &a338 []
+  /api/blogs:
+    get:
+      summary: List blogs
+      description: |-
+        List blogs
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a335
+      parameters: *a336
+      responses: *a337
+      operationId: listBlogs
+      security: *a338
+      x-deprecated-prefer: Use /api/v1listBlogs
+  /api/v1/blogs/{slug}:
+    get:
+      summary: Get blog by slug
+      description: Get blog by slug
+      tags: &a339
+        - Blogs
+      parameters: &a340
+        - name: slug
+          in: path
+          required: true
+          description: Blog slug
+          schema:
+            type: string
+            example: ten-day-kerala
+      responses: &a341
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: getBlog
+      security: &a342 []
+  /api/blogs/{slug}:
+    get:
+      summary: Get blog by slug
+      description: |-
+        Get blog by slug
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a339
+      parameters: *a340
+      responses: *a341
+      operationId: getBlog
+      security: *a342
+      x-deprecated-prefer: Use /api/v1getBlog
+  /api/v1/monitoring/overview:
+    get:
+      summary: Admin monitoring overview
+      description: Requires admin role. Includes Redis, Mongo, sockets, cache hit ratio.
+      tags: &a343
+        - Monitoring
+      parameters: &a344 []
+      responses: &a345
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: monitoringOverview
+      security: *a24
+  /api/monitoring/overview:
+    get:
+      summary: Admin monitoring overview
+      description: |-
+        Requires admin role. Includes Redis, Mongo, sockets, cache hit ratio.
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a343
+      parameters: *a344
+      responses: *a345
+      operationId: monitoringOverview
+      security: *a24
+      x-deprecated-prefer: Use /api/v1monitoringOverview
+  /api/v1/monitoring/metrics:
+    get:
+      summary: Admin metrics
+      description: Admin metrics
+      tags: &a346
+        - Monitoring
+      parameters: &a347 []
+      responses: &a348
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: monitoringMetrics
+      security: *a24
+  /api/monitoring/metrics:
+    get:
+      summary: Admin metrics
+      description: |-
+        Admin metrics
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a346
+      parameters: *a347
+      responses: *a348
+      operationId: monitoringMetrics
+      security: *a24
+      x-deprecated-prefer: Use /api/v1monitoringMetrics
+  /api/v1/monitoring/alerts:
+    get:
+      summary: Admin alerts
+      description: Admin alerts
+      tags: &a349
+        - Monitoring
+      parameters: &a350 []
+      responses: &a351
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: monitoringAlerts
+      security: *a24
+  /api/monitoring/alerts:
+    get:
+      summary: Admin alerts
+      description: |-
+        Admin alerts
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a349
+      parameters: *a350
+      responses: *a351
+      operationId: monitoringAlerts
+      security: *a24
+      x-deprecated-prefer: Use /api/v1monitoringAlerts
+  /api/v1/monitoring/services:
+    get:
+      summary: Admin service health
+      description: Admin service health
+      tags: &a352
+        - Monitoring
+      parameters: &a353 []
+      responses: &a354
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      operationId: monitoringServices
+      security: *a24
+  /api/monitoring/services:
+    get:
+      summary: Admin service health
+      description: |-
+        Admin service health
+
+        **Legacy alias** of the `/api/v1` path. Prefer versioned URLs.
+      tags: *a352
+      parameters: *a353
+      responses: *a354
+      operationId: monitoringServices
+      security: *a24
+      x-deprecated-prefer: Use /api/v1monitoringServices

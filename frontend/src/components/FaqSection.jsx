@@ -45,10 +45,10 @@ function FaqSection() {
     <section className="bg-muted/20 py-20 md:py-28">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10 text-center md:mb-12">
-          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="type-section-title text-3xl sm:text-4xl">
             Frequently Asked Questions
           </h2>
-          <p className="mx-auto mt-3 max-w-3xl text-base text-muted-foreground sm:text-lg lg:text-xl">
+          <p className="type-lead mx-auto mt-3 max-w-3xl lg:text-xl">
             Planning made simpler—answers to common questions about how TravelPlan fits into your trip workflow.
           </p>
         </div>
@@ -66,7 +66,7 @@ function FaqSection() {
                   aria-controls={`faq-panel-${i}`}
                   id={`faq-trigger-${i}`}
                 >
-                  <span className="font-heading text-base font-semibold leading-snug text-foreground sm:text-lg md:text-xl">
+                  <span className="font-body text-base font-semibold leading-snug text-foreground sm:text-lg md:text-xl">
                     {item.q}
                   </span>
                   <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground">
@@ -80,7 +80,7 @@ function FaqSection() {
                   className={`grid min-h-0 transition-[grid-template-rows] duration-300 ease-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
                 >
                   <div className="min-h-0 overflow-hidden">
-                    <p className="pb-6 pr-2 text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-relaxed md:max-w-4xl md:text-[17px]">
+                    <p className="type-body pb-6 pr-2 md:max-w-4xl">
                       {item.a}
                     </p>
                   </div>

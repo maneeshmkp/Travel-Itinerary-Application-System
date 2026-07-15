@@ -7,19 +7,56 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node utils/seedData.js"
+    "lint": "node --check server.js && node --check app.js && node --check socket/index.js && node --check routes/apiRouter.js && node --check config/swagger.js",
+    "test": "node --test tests/**/*.test.js",
+    "docs:validate": "node scripts/validateOpenApi.js",
+    "docs:postman": "node scripts/generatePostman.js",
+    "docs:sdk": "node scripts/generateSdk.js",
+    "docs:build": "npm run docs:validate && npm run docs:postman && npm run docs:sdk",
+    "seed": "node utils/seedData.js",
+    "seed:blogs": "node utils/seedBlogs.js",
+    "backfill:blog-covers": "node utils/backfillBlogCovers.js",
+    "backfill:coordinates": "node utils/backfillActivityCoordinates.js",
+    "backfill:trip-images": "node utils/backfillTripImages.js",
+    "seed:notifications": "node utils/seedNotifications.js",
+    "seed:bookings": "node utils/seedBookings.js",
+    "perf:explain": "node scripts/explainPlans.js",
+    "perf:load": "node scripts/loadTest.js",
+    "redis:smoke": "node scripts/redisSmokeTest.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1085.0",
+    "@aws-sdk/s3-request-presigner": "^3.1085.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.80.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "express-mongo-sanitize": "^2.2.0",
     "express-validator": "^7.0.1",
+    "helmet": "^8.3.0",
+    "hpp": "^0.2.3",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
-    "nodemailer": "^7.0.11"
+    "morgan": "^1.11.0",
+    "multer": "^2.2.0",
+    "node-cron": "^4.5.0",
+    "nodemailer": "^7.0.11",
+    "oauth-1.0a": "^2.2.6",
+    "pdfkit": "^0.19.1",
+    "railkit": "^4.0.1",
+    "sharp": "^0.35.3",
+    "socket.io": "^4.8.3",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0",
+    "xss": "^1.0.15",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "nodemon": "^3.1.14"
   }
 }

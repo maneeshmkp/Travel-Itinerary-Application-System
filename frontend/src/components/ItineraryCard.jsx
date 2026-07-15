@@ -1,6 +1,7 @@
 import { Calendar, MapPin, Clock, Tag, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
 import DestinationHeroImage from "./DestinationHeroImage"
+import { formatMoney, DEFAULT_CURRENCY } from "../utils/budgetCalculations"
 
 const ItineraryCard = ({ itinerary }) => {
   const {
@@ -13,9 +14,15 @@ const ItineraryCard = ({ itinerary }) => {
     highlights = [],
     tags = [],
     budget,
+    budgetInsight,
+    totalBudget,
     bestTimeToVisit,
     createdAt,
+    coverImage,
   } = itinerary
+
+  const estActivities = budgetInsight?.totalBudget ?? totalBudget ?? 0
+  const estCurrency = budgetInsight?.currency || budget?.currency || DEFAULT_CURRENCY
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -28,7 +35,11 @@ const ItineraryCard = ({ itinerary }) => {
   return (
     <div className="card-hover bg-card border border-border rounded-xl shadow-sm overflow-hidden group">
       <DestinationHeroImage
+        itinerary={itinerary}
         destination={destination}
+        title={title}
+        tags={tags}
+        coverImage={coverImage}
         heightClass="h-48"
         roundedClass="rounded-t-xl"
         badge={
@@ -90,11 +101,21 @@ const ItineraryCard = ({ itinerary }) => {
             <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
             <span>{totalDays} days</span>
           </div>
-          {budget && (
+          {budget && (budget.min || budget.max) && (
             <div className="flex items-center gap-1.5">
-              <span className="text-primary font-semibold">${budget.min}</span>
-              <span className="text-muted-foreground">-</span>
-              <span className="text-primary font-semibold">${budget.max}</span>
+              <span className="text-primary font-semibold">{formatMoney(budget.min || 0, budget.currency || DEFAULT_CURRENCY)}</span>
+              <span className="text-muted-foreground">–</span>
+              <span className="text-primary font-semibold">
+                {budget.max != null && budget.max !== ""
+                  ? formatMoney(budget.max, budget.currency || DEFAULT_CURRENCY)
+                  : "—"}
+              </span>
+            </div>
+          )}
+          {estActivities > 0 && (
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-muted-foreground">Est. activities:</span>
+              <span className="text-primary font-semibold">{formatMoney(estActivities, estCurrency)}</span>
             </div>
           )}
           {bestTimeToVisit && (

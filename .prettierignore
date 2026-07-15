@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+backend/logs
+backend/uploads
+frontend/dist
+*.min.js
+package-lock.json
+.env
+.env.*
+!.env*.example

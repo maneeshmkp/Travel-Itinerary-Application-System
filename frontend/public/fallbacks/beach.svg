@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Beach travel">
+  <defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs>
+  <rect width="800" height="600" fill="url(#b)"/>
+  <circle cx="680" cy="100" r="50" fill="rgba(255,255,255,.35)"/>
+  <path fill="rgba(255,255,255,.25)" d="M0 380 Q200 320 400 380 T800 360 V600 H0 Z"/>
+</svg>

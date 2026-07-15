@@ -1,0 +1,162 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-critical:
+    name: Playwright critical E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: ${{ secrets.E2E_MONGO_URI != '' || secrets.MONGO_URI != '' || secrets.MONGODB_URI != '' }}
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install root (Playwright)
+        run: npm ci
+
+      - name: Install backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Prepare backend env
+        working-directory: backend
+        env:
+          E2E_MONGO_URI: ${{ secrets.E2E_MONGO_URI }}
+          MONGO_URI_SECRET: ${{ secrets.MONGO_URI }}
+          MONGODB_URI_SECRET: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET_VALUE: ${{ secrets.JWT_SECRET }}
+        run: |
+          MONGO_URI="${E2E_MONGO_URI:-${MONGO_URI_SECRET:-$MONGODB_URI_SECRET}}"
+          JWT_SECRET="${JWT_SECRET_VALUE:-e2e-ci-jwt-secret-change-me}"
+          if [ -z "$MONGO_URI" ]; then echo "Missing Mongo URI secret"; exit 1; fi
+          cat > .env <<EOF
+          MONGO_URI=${MONGO_URI}
+          MONGODB_URI=${MONGO_URI}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_EXPIRE=1d
+          PORT=5000
+          NODE_ENV=test
+          FRONTEND_URL=http://127.0.0.1:3000
+          REDIS_URL=redis://127.0.0.1:6379
+          EOF
+
+      - name: Run critical E2E
+        env:
+          CI: "true"
+          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_API_URL: http://127.0.0.1:5000/api
+        run: npm run test:e2e:critical
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-critical
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  e2e-full:
+    name: Playwright full suite
+    runs-on: ubuntu-latest
+    needs: e2e-critical
+    timeout-minutes: 60
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install chromium --with-deps
+      - name: Prepare backend env
+        working-directory: backend
+        env:
+          E2E_MONGO_URI: ${{ secrets.E2E_MONGO_URI }}
+          MONGO_URI_SECRET: ${{ secrets.MONGO_URI }}
+          MONGODB_URI_SECRET: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET_VALUE: ${{ secrets.JWT_SECRET }}
+        run: |
+          MONGO_URI="${E2E_MONGO_URI:-${MONGO_URI_SECRET:-$MONGODB_URI_SECRET}}"
+          JWT_SECRET="${JWT_SECRET_VALUE:-e2e-ci-jwt-secret-change-me}"
+          if [ -z "$MONGO_URI" ]; then echo "Missing Mongo URI secret"; exit 1; fi
+          cat > .env <<EOF
+          MONGO_URI=${MONGO_URI}
+          MONGODB_URI=${MONGO_URI}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_EXPIRE=1d
+          PORT=5000
+          NODE_ENV=test
+          FRONTEND_URL=http://127.0.0.1:3000
+          REDIS_URL=redis://127.0.0.1:6379
+          EOF
+      - name: Run full E2E
+        env:
+          CI: "true"
+          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_API_URL: http://127.0.0.1:5000/api
+        run: npm run test:e2e
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-full
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

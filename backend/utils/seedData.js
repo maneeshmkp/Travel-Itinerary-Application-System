@@ -3,6 +3,7 @@ import connectDB from "../config/db.js"
 import Itinerary from "../models/Itinerary.js"
 import Day from "../models/Day.js"
 import Activity from "../models/Activity.js"
+import { getTripCoverImage } from "../services/tripImageService.js"
 
 dotenv.config()
 
@@ -56,6 +57,8 @@ const seedData = async () => {
                 location: "Patong Beach Resort",
                 category: "relaxation",
                 duration: "2 hours",
+                latitude: 7.8965,
+                longitude: 98.2984,
               },
               {
                 name: "Patong Beach Exploration",
@@ -65,6 +68,8 @@ const seedData = async () => {
                 location: "Patong Beach",
                 category: "relaxation",
                 duration: "3 hours",
+                latitude: 7.8895,
+                longitude: 98.2952,
               },
               {
                 name: "Bangla Road Night Market",
@@ -74,6 +79,8 @@ const seedData = async () => {
                 location: "Bangla Road, Patong",
                 category: "cultural",
                 duration: "3 hours",
+                latitude: 7.8912,
+                longitude: 98.303,
               },
             ],
           },
@@ -93,6 +100,8 @@ const seedData = async () => {
                 location: "Phi Phi Islands",
                 category: "adventure",
                 duration: "8 hours",
+                latitude: 7.7407,
+                longitude: 98.7784,
               },
               {
                 name: "Traditional Thai Dinner",
@@ -102,6 +111,8 @@ const seedData = async () => {
                 location: "Old Phuket Town",
                 category: "dining",
                 duration: "2 hours",
+                latitude: 7.8841,
+                longitude: 98.3923,
               },
             ],
           },
@@ -121,6 +132,8 @@ const seedData = async () => {
                 location: "Big Buddha Temple, Chalong",
                 category: "cultural",
                 duration: "2 hours",
+                latitude: 7.8276,
+                longitude: 98.3128,
               },
               {
                 name: "Promthep Cape Sunset",
@@ -130,6 +143,8 @@ const seedData = async () => {
                 location: "Promthep Cape",
                 category: "sightseeing",
                 duration: "2 hours",
+                latitude: 7.7625,
+                longitude: 98.3065,
               },
               {
                 name: "Farewell Beach Dinner",
@@ -139,6 +154,8 @@ const seedData = async () => {
                 location: "Kata Beach",
                 category: "dining",
                 duration: "2 hours",
+                latitude: 7.8204,
+                longitude: 98.2987,
               },
             ],
           },
@@ -157,6 +174,8 @@ const seedData = async () => {
                 location: "Phuket International Airport",
                 category: "relaxation",
                 duration: "2 hours",
+                latitude: 8.1132,
+                longitude: 98.3169,
               },
             ],
           },
@@ -978,8 +997,387 @@ const seedData = async () => {
       },
     ]
 
+    const indiaItineraries = [
+      {
+        title: "Agra Heritage Escape - 2 Days",
+        destination: "Agra, India",
+        numberOfNights: 2,
+        description: "Explore Mughal architecture with the Taj Mahal, Agra Fort, and riverside gardens.",
+        budget: { min: 400, max: 700, currency: "USD" },
+        bestTimeToVisit: "October - March",
+        highlights: ["Taj Mahal sunrise", "Agra Fort", "Mehtab Bagh sunset"],
+        tags: ["cultural", "history", "romantic"],
+        isRecommended: true,
+        days: [
+          {
+            dayNumber: 1,
+            hotel: { name: "Taj View Hotel", location: "Tajganj, Agra", rating: 4 },
+            activities: [
+              {
+                name: "Taj Mahal Visit",
+                description: "Sunrise visit to the iconic marble mausoleum.",
+                time: "6:00 AM",
+                location: "Taj Mahal",
+                category: "sightseeing",
+                duration: "3 hours",
+                latitude: 27.1751,
+                longitude: 78.0421,
+              },
+              {
+                name: "Agra Fort Exploration",
+                description: "UNESCO-listed red sandstone fort and palaces.",
+                time: "10:00 AM",
+                location: "Agra Fort",
+                category: "cultural",
+                duration: "2 hours",
+                latitude: 27.1797,
+                longitude: 78.0211,
+              },
+              {
+                name: "Lunch at a Local Restaurant",
+                description: "North Indian lunch near the Taj Mahal area.",
+                time: "1:00 PM",
+                location: "Tajganj, Agra",
+                category: "dining",
+                duration: "1 hour",
+                latitude: 27.1687,
+                longitude: 78.042,
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            hotel: { name: "Taj View Hotel", location: "Tajganj, Agra", rating: 4 },
+            activities: [
+              {
+                name: "Mehtab Bagh Sunset View",
+                description: "Garden across the Yamuna with Taj Mahal views.",
+                time: "5:00 PM",
+                location: "Mehtab Bagh",
+                category: "sightseeing",
+                duration: "2 hours",
+                latitude: 27.1844,
+                longitude: 78.0419,
+              },
+              {
+                name: "Shopping for Handicrafts",
+                description: "Marble inlay and leather goods at Sadar Bazaar.",
+                time: "3:00 PM",
+                location: "Sadar Bazaar, Agra",
+                category: "shopping",
+                duration: "2 hours",
+                latitude: 27.1648,
+                longitude: 78.0055,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Kashmir Valley Journey - 4 Days",
+        destination: "Jammu, Katra, Srinagar, Kashmir, India",
+        numberOfNights: 4,
+        description: "Pilgrimage to Vaishno Devi and Srinagar's lakes and gardens.",
+        budget: { min: 600, max: 1000, currency: "USD" },
+        bestTimeToVisit: "April - October",
+        highlights: ["Vaishno Devi", "Dal Lake shikara", "Gulmarg meadows"],
+        tags: ["spiritual", "mountain", "nature"],
+        isRecommended: true,
+        days: [
+          {
+            dayNumber: 1,
+            hotel: { name: "Hotel Rama Trident", location: "Katra, Jammu", rating: 4 },
+            activities: [
+              {
+                name: "Vaishno Devi Temple Visit",
+                description: "Trek to the holy shrine in the Trikuta Mountains.",
+                time: "6:00 AM",
+                location: "Vaishno Devi Temple, Katra",
+                category: "cultural",
+                duration: "8 hours",
+                latitude: 33.031,
+                longitude: 74.9479,
+              },
+              {
+                name: "Explore Katra Market",
+                description: "Local market for prasad and souvenirs.",
+                time: "6:00 PM",
+                location: "Katra Main Market",
+                category: "shopping",
+                duration: "2 hours",
+                latitude: 32.9915,
+                longitude: 74.9318,
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            hotel: { name: "Houseboat on Dal Lake", location: "Dal Lake, Srinagar", rating: 4 },
+            activities: [
+              {
+                name: "Shikara Ride on Dal Lake",
+                description: "Traditional wooden boat ride on Dal Lake.",
+                time: "4:00 PM",
+                location: "Dal Lake, Srinagar",
+                category: "relaxation",
+                duration: "2 hours",
+                latitude: 34.102,
+                longitude: 74.8607,
+              },
+              {
+                name: "Visit Shalimar Bagh",
+                description: "Mughal garden built by Jahangir.",
+                time: "10:00 AM",
+                location: "Shalimar Bagh, Srinagar",
+                category: "sightseeing",
+                duration: "2 hours",
+                latitude: 34.1495,
+                longitude: 74.8737,
+              },
+              {
+                name: "Visit Nishat Bagh",
+                description: "Terraced Mughal garden on Dal Lake's eastern shore.",
+                time: "12:00 PM",
+                location: "Nishat Bagh, Srinagar",
+                category: "sightseeing",
+                duration: "1.5 hours",
+                latitude: 34.1256,
+                longitude: 74.8792,
+              },
+            ],
+          },
+          {
+            dayNumber: 3,
+            hotel: { name: "Gulmarg Resort", location: "Gulmarg", rating: 4 },
+            activities: [
+              {
+                name: "Gulmarg Gondola Ride",
+                description: "Cable car to Kongdori with Himalayan views.",
+                time: "9:00 AM",
+                location: "Gulmarg",
+                category: "adventure",
+                duration: "4 hours",
+                latitude: 34.0484,
+                longitude: 74.3805,
+              },
+              {
+                name: "Explore Pari Mahal",
+                description: "Historic terraced garden overlooking Srinagar.",
+                time: "3:00 PM",
+                location: "Pari Mahal, Srinagar",
+                category: "cultural",
+                duration: "1.5 hours",
+                latitude: 34.1431,
+                longitude: 74.8783,
+              },
+            ],
+          },
+          {
+            dayNumber: 4,
+            hotel: { name: "Pahalgam Retreat", location: "Pahalgam", rating: 4 },
+            activities: [
+              {
+                name: "Aru Valley Exploration",
+                description: "Scenic meadow valley near Pahalgam.",
+                time: "9:00 AM",
+                location: "Aru Valley, Pahalgam",
+                category: "adventure",
+                duration: "4 hours",
+                latitude: 34.0586,
+                longitude: 75.2533,
+              },
+              {
+                name: "Betaab Valley Visit",
+                description: "Lush valley named after a Bollywood film.",
+                time: "2:00 PM",
+                location: "Betaab Valley, Pahalgam",
+                category: "sightseeing",
+                duration: "2 hours",
+                latitude: 34.0422,
+                longitude: 75.2872,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Tamil Nadu Temple Trail - 3 Days",
+        destination: "Madurai, Rameswaram, Tirupati",
+        numberOfNights: 3,
+        description: "South India's greatest temple cities in one spiritual circuit.",
+        budget: { min: 350, max: 600, currency: "USD" },
+        bestTimeToVisit: "November - February",
+        highlights: ["Meenakshi Temple", "Rameswaram Ramanathaswamy", "Tirupati Balaji"],
+        tags: ["spiritual", "cultural", "history"],
+        isRecommended: true,
+        days: [
+          {
+            dayNumber: 1,
+            hotel: { name: "Heritage Madurai", location: "Madurai", rating: 4 },
+            activities: [
+              {
+                name: "Meenakshi Amman Temple",
+                description: "Iconic Dravidian temple complex in Madurai.",
+                time: "8:00 AM",
+                location: "Meenakshi Amman Temple, Madurai",
+                category: "cultural",
+                duration: "3 hours",
+                latitude: 9.9195,
+                longitude: 78.1193,
+              },
+              {
+                name: "Thirumalai Nayakkar Palace",
+                description: "17th-century palace with stucco work and courtyard.",
+                time: "2:00 PM",
+                location: "Thirumalai Nayakkar Palace, Madurai",
+                category: "sightseeing",
+                duration: "2 hours",
+                latitude: 9.9197,
+                longitude: 78.1208,
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            hotel: { name: "Rameswaram Sea View", location: "Rameswaram", rating: 3 },
+            activities: [
+              {
+                name: "Ramanathaswamy Temple",
+                description: "Sacred temple on Pamban Island.",
+                time: "7:00 AM",
+                location: "Ramanathaswamy Temple, Rameswaram",
+                category: "cultural",
+                duration: "3 hours",
+                latitude: 9.2881,
+                longitude: 79.3127,
+              },
+            ],
+          },
+          {
+            dayNumber: 3,
+            hotel: { name: "Tirupati Guest House", location: "Tirupati", rating: 3 },
+            activities: [
+              {
+                name: "Tirumala Venkateswara Temple",
+                description: "Darshan at Tirupati Balaji temple.",
+                time: "6:00 AM",
+                location: "Tirumala, Tirupati",
+                category: "cultural",
+                duration: "6 hours",
+                latitude: 13.6833,
+                longitude: 79.347,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Ujjain Mahakal Jyotirlinga Spiritual Tour",
+        destination: "Ujjain, Madhya Pradesh, India",
+        numberOfNights: 2,
+        description:
+          "Sacred pilgrimage to Mahakaleshwar Jyotirlinga with Bhasma Aarti and evening aarti at Ram Ghat on the Shipra.",
+        budget: { min: 200, max: 450, currency: "USD" },
+        bestTimeToVisit: "October - March",
+        highlights: ["Mahakaleshwar Temple", "Bhasma Aarti", "Ram Ghat Shipra Aarti"],
+        tags: ["spiritual", "cultural", "history"],
+        isRecommended: true,
+        days: [
+          {
+            dayNumber: 1,
+            hotel: { name: "Hotel Grand Bhagwati", location: "Ujjain", rating: 4 },
+            activities: [
+              {
+                name: "Mahakaleshwar Temple Darshan",
+                description: "Visit one of the twelve Jyotirlingas in ancient Ujjain.",
+                time: "8:00 AM",
+                location: "Mahakaleshwar Temple, Ujjain",
+                category: "cultural",
+                duration: "3 hours",
+                latitude: 23.1828,
+                longitude: 75.7681,
+              },
+              {
+                name: "Bhasma Aarti",
+                description: "Early morning sacred ash ritual at Mahakaleshwar Temple.",
+                time: "4:00 AM",
+                location: "Mahakaleshwar Temple, Ujjain",
+                category: "cultural",
+                duration: "2 hours",
+                latitude: 23.1828,
+                longitude: 75.7681,
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            hotel: { name: "Hotel Grand Bhagwati", location: "Ujjain", rating: 4 },
+            activities: [
+              {
+                name: "Ram Ghat Evening Aarti",
+                description: "Sunset aarti on the banks of the Shipra River.",
+                time: "6:30 PM",
+                location: "Ram Ghat, Ujjain",
+                category: "cultural",
+                duration: "1.5 hours",
+                latitude: 23.1889,
+                longitude: 75.7797,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Darjeeling Himalayan Escape - 4 Days",
+        destination: "Darjeeling, West Bengal, India",
+        numberOfNights: 4,
+        description: "Tea gardens, Tiger Hill sunrise, and toy train heritage in the Queen of Hills.",
+        budget: { min: 400, max: 750, currency: "USD" },
+        bestTimeToVisit: "March - May, October - December",
+        highlights: ["Tiger Hill sunrise", "Darjeeling Himalayan Railway", "Tea estate visit"],
+        tags: ["mountain", "nature", "adventure"],
+        isRecommended: true,
+        days: [
+          {
+            dayNumber: 1,
+            hotel: { name: "Mayfair Darjeeling", location: "Darjeeling", rating: 4 },
+            activities: [
+              {
+                name: "Trek to Tiger Hill for Sunrise",
+                description: "Panoramic sunrise over Kanchenjunga from Tiger Hill.",
+                time: "4:30 AM",
+                location: "Tiger Hill, Darjeeling",
+                category: "adventure",
+                duration: "3 hours",
+                latitude: 27.0056,
+                longitude: 88.2889,
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            hotel: { name: "Mayfair Darjeeling", location: "Darjeeling", rating: 4 },
+            activities: [
+              {
+                name: "Darjeeling Tea Garden Visit",
+                description: "Walk through emerald tea estates with tasting.",
+                time: "10:00 AM",
+                location: "Happy Valley Tea Estate, Darjeeling",
+                category: "cultural",
+                duration: "2 hours",
+                latitude: 27.053,
+                longitude: 88.2639,
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
     // Create all itineraries
-    const allItineraries = [...phuketItineraries, ...krabiItineraries]
+    const allItineraries = [...phuketItineraries, ...krabiItineraries, ...indiaItineraries]
+
+    const usedCoverStems = new Set()
 
     for (const itineraryData of allItineraries) {
       console.log(`Creating itinerary: ${itineraryData.title}`)
@@ -1005,16 +1403,25 @@ const seedData = async () => {
         createdDays.push(day._id)
       }
 
-      // Create itinerary with day references
+      // Create itinerary with day references and relevant cover image
+      const coverImage = await getTripCoverImage(
+        { ...itineraryData, days: itineraryData.days },
+        { excludeStems: usedCoverStems },
+      )
+      if (coverImage?.url) {
+        const stem = coverImage.url.split("?")[0].toLowerCase()
+        usedCoverStems.add(stem)
+      }
       await Itinerary.create({
         ...itineraryData,
         days: createdDays,
+        coverImage,
       })
     }
 
     console.log("✅ Seed data created successfully!")
     console.log(`Created ${allItineraries.length} itineraries with full details`)
-    console.log("Destinations: Phuket, Krabi")
+    console.log("Destinations: Phuket, Krabi, Agra, Kashmir, Tamil Nadu, Ujjain, Darjeeling")
     console.log("Duration range: 3-7 nights")
     console.log("All itineraries marked as recommended")
 
