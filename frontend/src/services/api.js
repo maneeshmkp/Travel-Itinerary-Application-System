@@ -8,21 +8,12 @@ import {
   setAuthToken,
   setRefreshToken,
 } from "../utils/authStorage"
+import { resolveApiBaseUrl } from "../apiBaseUrl.helper.js"
 
-/** Ensures requests hit /api/... even when VITE_API_URL is set to http://host:port without /api */
-function resolveApiBaseUrl() {
-  const raw = import.meta.env.VITE_API_URL?.trim()
-  if (!raw) {
-    // Dev: same-origin /api → Vite proxy → backend (avoids CORS and stale direct-to-wrong-port issues)
-    if (import.meta.env.DEV) return "/api"
-    return "http://localhost:5000/api"
-  }
-  const noTrail = raw.replace(/\/+$/, "")
-  if (noTrail.endsWith("/api")) return noTrail
-  return `${noTrail}/api`
-}
-
-const API_BASE_URL = resolveApiBaseUrl()
+/** Production-safe base URL — never localhost when VITE_API_URL is missing in prod builds. */
+const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_URL, {
+  isDev: import.meta.env.DEV,
+})
 
 const api = axios.create({
   baseURL: API_BASE_URL,

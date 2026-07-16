@@ -1,20 +1,17 @@
 import { io } from "socket.io-client"
+import { resolveSocketOrigin } from "../apiBaseUrl.helper.js"
 
 /**
  * Resolve Socket.IO HTTP origin (no /api path).
  * Dev: talk to backend directly so WS upgrades aren't lost on the Vite proxy.
+ * Prod: Render backend (never Vercel origin / never localhost).
  */
 export function resolveSocketUrl() {
-  const explicit = import.meta.env.VITE_SOCKET_URL?.trim()
-  if (explicit) return explicit.replace(/\/+$/, "")
-
-  const api = import.meta.env.VITE_API_URL?.trim()
-  if (api) {
-    return api.replace(/\/+$/, "").replace(/\/api$/i, "")
-  }
-
-  if (import.meta.env.DEV) return "http://127.0.0.1:5000"
-  return window.location.origin
+  return resolveSocketOrigin({
+    socketUrl: import.meta.env.VITE_SOCKET_URL,
+    apiUrl: import.meta.env.VITE_API_URL,
+    isDev: import.meta.env.DEV,
+  })
 }
 
 let socketSingleton = null

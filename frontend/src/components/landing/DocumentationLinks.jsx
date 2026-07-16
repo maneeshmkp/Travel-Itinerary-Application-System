@@ -7,10 +7,13 @@
 import { BookOpen, ExternalLink } from "lucide-react"
 import { LandingSection, GlassCard } from "./LandingSection"
 import { DOC_LINKS } from "../../constants/landing"
+import { resolveApiBaseUrl } from "../../apiBaseUrl.helper.js"
 
 function swaggerHref() {
-  const base = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "")
-  return `${base}/docs`
+  const api = resolveApiBaseUrl(import.meta.env.VITE_API_URL, {
+    isDev: import.meta.env.DEV,
+  })
+  return `${api.replace(/\/api\/?$/, "")}/docs`
 }
 
 export default function DocumentationLinks() {
