@@ -35,7 +35,15 @@ app.use(
     origin: corsOriginDelegate,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token", "X-XSRF-Token"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "X-CSRF-Token",
+      "X-XSRF-Token",
+      "X-Device-Id",
+    ],
+    exposedHeaders: ["X-API-Version", "X-Request-Id", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
   }),
 )
 
