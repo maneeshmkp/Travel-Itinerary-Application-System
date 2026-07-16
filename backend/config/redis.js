@@ -1,6 +1,6 @@
 /**
  * Singleton Redis client (ioredis).
- * Auto-reconnect, retry strategy, connection health, graceful shutdown.
+ * Lifecycle: waitForRedisReady() → BullMQ / Socket adapter.
  * App continues without Redis when REDIS_URL is unset or Redis is down.
  */
 import Redis from "ioredis"
@@ -16,6 +16,8 @@ let connecting = false
 let lastErrorAt = 0
 let lastReconnectLogAt = 0
 let ready = false
+/** @type {Promise<import("ioredis").default | null> | null} */
+let readyPromise = null
 
 /**
  * Resolved Redis URL, or null when unset / not usable in this environment.
@@ -40,11 +42,11 @@ function redisUrl() {
   return resolveRedisUrl()
 }
 
+/** Exponential backoff for reconnects (capped). Returning null stops reconnect. */
 function retryStrategy(times) {
-  // Back off harder when Redis is down to avoid log/CPU storms; stop after long failure
   if (times > 40) return null
-  const delay = Math.min(times * 500, 15_000)
-  if (times <= 2 || times % 20 === 0) {
+  const delay = Math.min(100 * 2 ** Math.min(times, 8), 15_000)
+  if (times <= 2 || times % 10 === 0) {
     logRedis.warn("Redis reconnect attempt", { times, delayMs: delay })
   }
   return delay
@@ -76,7 +78,7 @@ function createClient(role = "main") {
     maxRetriesPerRequest: null, // required by BullMQ
     enableReadyCheck: true,
     lazyConnect: true,
-    connectTimeout: 8_000,
+    connectTimeout: 10_000,
     retryStrategy,
     reconnectOnError(err) {
       const msg = String(err?.message || "")
@@ -90,7 +92,11 @@ function createClient(role = "main") {
   })
   instance.on("ready", () => {
     ready = role === "main" ? true : ready
-    logRedis.info("Redis connected", { role })
+    if (role === "main") {
+      logRedis.info("Redis connected")
+    } else {
+      logRedis.info("Redis connected", { role })
+    }
   })
   attachSafeErrorHandler(instance, role)
   instance.on("close", () => {
@@ -118,7 +124,7 @@ function createClient(role = "main") {
  */
 export async function getRedis() {
   if (!redisUrl()) return null
-  if (client && ready) return client
+  if (client && ready && client.status === "ready") return client
 
   if (!client) {
     client = createClient("main")
@@ -131,7 +137,7 @@ export async function getRedis() {
   }
 
   if (connecting) {
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       if (client.status === "ready") {
         ready = true
         return client
@@ -159,6 +165,58 @@ export async function getRedis() {
     return null
   } finally {
     connecting = false
+  }
+}
+
+/**
+ * Await a live Redis connection (PING) before BullMQ / Socket adapter.
+ * Exactly one in-flight init; concurrent callers share the same promise.
+ * @param {{ timeoutMs?: number }} [opts]
+ * @returns {Promise<import("ioredis").default | null>}
+ */
+export async function waitForRedisReady({ timeoutMs = 20_000 } = {}) {
+  if (!redisUrl()) return null
+
+  if (client && ready && client.status === "ready") {
+    try {
+      if ((await client.ping()) === "PONG") return client
+    } catch {
+      ready = false
+    }
+  }
+
+  if (readyPromise) return readyPromise
+
+  readyPromise = (async () => {
+    const deadline = Date.now() + timeoutMs
+    let attempt = 0
+
+    while (Date.now() < deadline) {
+      attempt += 1
+      const c = await getRedis()
+      if (c) {
+        try {
+          if ((await c.ping()) === "PONG") {
+            ready = true
+            return c
+          }
+        } catch {
+          ready = false
+        }
+      }
+
+      const delay = Math.min(100 * 2 ** Math.min(attempt - 1, 6), 8_000)
+      await new Promise((r) => setTimeout(r, delay))
+    }
+
+    logRedis.warn("Redis not ready within timeout — queues deferred", { timeoutMs })
+    return null
+  })()
+
+  try {
+    return await readyPromise
+  } finally {
+    if (!ready) readyPromise = null
   }
 }
 
@@ -204,18 +262,19 @@ export function getRedisConnectionInfo() {
 }
 
 /**
- * Soft-init on boot (non-blocking). Safe to call even when Redis is optional.
+ * Soft-init on boot (non-blocking). Prefer waitForRedisReady() for sequenced startup.
  */
 export function initRedis() {
   if (!redisUrl()) {
     logRedis.info("Redis not configured (REDIS_URL unset) — cache/queues disabled")
-    return
+    return Promise.resolve(null)
   }
-  getRedis().catch(() => {})
+  return waitForRedisReady().catch(() => null)
 }
 
 /** Graceful shutdown — quit clients without crashing callers. */
 export async function closeRedis() {
+  readyPromise = null
   const closing = []
   if (subscriber) {
     closing.push(
@@ -248,29 +307,28 @@ export async function closeRedis() {
 
 /**
  * BullMQ / ioredis connection options (new connection per worker recommended by BullMQ docs).
+ * Preserves TLS for rediss:// (required for Upstash).
  */
 export function getBullConnectionOptions() {
   const url = redisUrl()
   if (!url) return null
   try {
     const u = new URL(url)
+    const useTls = u.protocol === "rediss:"
     return {
-      host: u.hostname || "127.0.0.1",
+      host: u.hostname,
       port: Number(u.port || 6379) || 6379,
-      username: u.username || undefined,
-      password: u.password || undefined,
+      username: u.username ? decodeURIComponent(u.username) : undefined,
+      password: u.password ? decodeURIComponent(u.password) : undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
+      connectTimeout: 10_000,
       retryStrategy,
+      ...(useTls ? { tls: {} } : {}),
     }
-  } catch {
-    return {
-      host: "127.0.0.1",
-      port: 6379,
-      maxRetriesPerRequest: null,
-      enableReadyCheck: true,
-      retryStrategy,
-    }
+  } catch (err) {
+    logRedis.warn("Invalid REDIS_URL for BullMQ", { message: err?.message })
+    return null
   }
 }
 
@@ -287,43 +345,27 @@ export function createBullRedisConnection(role = "bullmq") {
 }
 
 /**
- * Quick ping to decide whether to start BullMQ workers.
+ * Confirm Redis is reachable via the shared client (after waitForRedisReady).
  * @returns {Promise<boolean>}
  */
-export async function probeRedis(timeoutMs = 2500) {
+export async function probeRedis(timeoutMs = 5_000) {
   if (!redisUrl()) return false
-  const opts = getBullConnectionOptions()
-  if (!opts) return false
-  const probe = new Redis({
-    ...opts,
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-    connectTimeout: timeoutMs,
-    retryStrategy: () => null,
-  })
-  attachSafeErrorHandler(probe, "probe")
   try {
-    await Promise.race([
-      (async () => {
-        await probe.connect()
-        const pong = await probe.ping()
-        return pong === "PONG"
-      })(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Redis probe timeout")), timeoutMs)
-      }),
-    ])
-    return true
+    const c = await waitForRedisReady({ timeoutMs })
+    if (!c) return false
+    return (await c.ping()) === "PONG"
   } catch (err) {
     logRedis.warn("Redis probe failed — queues deferred", { message: err?.message })
     return false
-  } finally {
-    try {
-      probe.disconnect()
-    } catch {
-      /* ignore */
-    }
   }
 }
 
-export default { getRedis, initRedis, closeRedis, isRedisReady, isRedisConfigured, probeRedis }
+export default {
+  getRedis,
+  initRedis,
+  waitForRedisReady,
+  closeRedis,
+  isRedisReady,
+  isRedisConfigured,
+  probeRedis,
+}

@@ -33,8 +33,19 @@ const flightStatusSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+// Existing lookups
 flightStatusSchema.index({ userId: 1, bookingId: 1 }, { sparse: true })
 flightStatusSchema.index({ tripId: 1, trackingActive: 1 })
 flightStatusSchema.index({ userId: 1, flightNumber: 1 })
+
+// Query-backed compounds (used by flightTrackingService)
+// startTracking dedupe: { userId, tripId, flightNumber, trackingActive }
+flightStatusSchema.index({ userId: 1, tripId: 1, flightNumber: 1, trackingActive: 1 })
+// getTripFlights: { userId, tripId } + sort departureTime
+flightStatusSchema.index({ userId: 1, tripId: 1, departureTime: 1 })
+// getTrackingHistory: { userId, trackingActive } + sort updatedAt
+flightStatusSchema.index({ userId: 1, trackingActive: 1, updatedAt: -1 })
+// refreshActiveFlights poller/job (hottest path)
+flightStatusSchema.index({ trackingActive: 1, status: 1 })
 
 export default mongoose.model("FlightStatus", flightStatusSchema)

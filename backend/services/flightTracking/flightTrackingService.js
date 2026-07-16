@@ -91,7 +91,7 @@ export async function startTracking(userId, body) {
     tripId,
     flightNumber,
     trackingActive: true,
-  })
+  }).lean()
   if (existing) return enrichFlightRecord(existing)
 
   const live = await fetchLiveFlightStatus({
@@ -273,11 +273,13 @@ export async function refreshActiveFlights() {
   const active = await FlightStatus.find({
     trackingActive: true,
     status: { $in: [...ACTIVE_FLIGHT_STATUSES] },
-  })
+  }).select(
+    "userId tripId bookingId airline flightNumber origin originCode destination destinationCode departureTime arrivalTime actualDeparture actualArrival terminal gate boardingTime status baggageClaim aircraftType durationMinutes delayMinutes trackingActive provider lastUpdated previousGate metadata",
+  )
 
   const tripIds = [...new Set(active.map((d) => String(d.tripId)).filter((id) => id && id !== "null"))]
   const trips = tripIds.length
-    ? await Itinerary.find({ _id: { $in: tripIds } }).select("title").lean()
+    ? await Itinerary.find({ _id: { $in: tripIds } }).select("_id title").lean()
     : []
   const tripById = new Map(trips.map((t) => [String(t._id), t]))
 

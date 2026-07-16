@@ -3,10 +3,21 @@ import jwt from "jsonwebtoken"
 import User from "../models/User.js"
 import { logSocket } from "../logger/index.js"
 import { recordSocketConnect, recordSocketDisconnect } from "../services/monitoring/metricsStore.js"
-import { isRedisConfigured, logRedis, resolveRedisUrl } from "../config/redis.js"
+import {
+  isRedisConfigured,
+  logRedis,
+  resolveRedisUrl,
+  waitForRedisReady,
+} from "../config/redis.js"
 
 /** @type {import("socket.io").Server | null} */
 let io = null
+
+/** @type {import("ioredis").default[]} */
+let socketRedisClients = []
+
+/** @type {Promise<boolean> | null} */
+let adapterPromise = null
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET
@@ -33,44 +44,93 @@ export function userRoom(userId) {
   return `user:${String(userId)}`
 }
 
-async function attachRedisAdapter(serverIo) {
-  if (!isRedisConfigured()) {
-    logSocket.info("Socket.IO: single-node mode (Redis adapter skipped)")
-    return false
-  }
-  try {
-    const { createAdapter } = await import("@socket.io/redis-adapter")
-    const Redis = (await import("ioredis")).default
-    const url = resolveRedisUrl()
-    if (!url) return false
-    const opts = {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: true,
-      lazyConnect: true,
-      retryStrategy(times) {
-        if (times > 5) return null
-        return Math.min(times * 200, 5000)
-      },
-    }
-    const pubClient = new Redis(url, opts)
-    const subClient = pubClient.duplicate()
-    pubClient.on("error", (err) => logRedis.error("Socket Redis pub error", { message: err?.message }))
-    subClient.on("error", (err) => logRedis.error("Socket Redis sub error", { message: err?.message }))
-    await Promise.all([pubClient.connect(), subClient.connect()])
-    serverIo.adapter(createAdapter(pubClient, subClient))
-    logSocket.info("Socket.IO: Redis adapter enabled (horizontal scaling)")
-    logRedis.info("Socket Redis adapter ready")
+/**
+ * Attach Socket.IO Redis adapter exactly once, after Redis is ready.
+ * @returns {Promise<boolean>}
+ */
+export async function enableSocketRedisAdapter() {
+  if (!io) return false
+  if (socketRedisClients.length > 0) {
+    logRedis.info("Socket.IO Redis adapter ready")
     return true
-  } catch (err) {
-    logSocket.warn("Socket.IO Redis adapter failed — single-node fallback", {
-      message: err?.message,
-    })
-    return false
   }
+  if (adapterPromise) return adapterPromise
+
+  adapterPromise = (async () => {
+    if (!isRedisConfigured()) {
+      logSocket.info("Socket.IO: single-node mode (Redis adapter skipped)")
+      return false
+    }
+
+    const readyClient = await waitForRedisReady({ timeoutMs: 15_000 })
+    if (!readyClient) {
+      logSocket.warn("Socket.IO Redis adapter skipped — Redis not ready")
+      return false
+    }
+
+    try {
+      const { createAdapter } = await import("@socket.io/redis-adapter")
+      const Redis = (await import("ioredis")).default
+      const url = resolveRedisUrl()
+      if (!url) return false
+
+      const opts = {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: true,
+        lazyConnect: true,
+        connectTimeout: 10_000,
+        retryStrategy(times) {
+          if (times > 40) return null
+          return Math.min(100 * 2 ** Math.min(times, 8), 15_000)
+        },
+      }
+      const pubClient = new Redis(url, opts)
+      const subClient = pubClient.duplicate()
+      pubClient.on("error", (err) =>
+        logRedis.error("Socket Redis pub error", { message: err?.message }),
+      )
+      subClient.on("error", (err) =>
+        logRedis.error("Socket Redis sub error", { message: err?.message }),
+      )
+      await Promise.all([pubClient.connect(), subClient.connect()])
+      io.adapter(createAdapter(pubClient, subClient))
+      socketRedisClients = [pubClient, subClient]
+      logRedis.info("Socket.IO Redis adapter ready")
+      return true
+    } catch (err) {
+      logSocket.warn("Socket.IO Redis adapter failed — single-node fallback", {
+        message: err?.message,
+      })
+      return false
+    }
+  })()
+
+  try {
+    return await adapterPromise
+  } finally {
+    if (socketRedisClients.length === 0) adapterPromise = null
+  }
+}
+
+/** Close Socket.IO Redis pub/sub clients on shutdown. */
+export async function closeSocketRedisAdapter() {
+  const closing = socketRedisClients.map((c) =>
+    c.quit().catch(() => {
+      try {
+        c.disconnect()
+      } catch {
+        /* ignore */
+      }
+    }),
+  )
+  socketRedisClients = []
+  adapterPromise = null
+  await Promise.allSettled(closing)
 }
 
 /**
  * Attach Socket.IO to the HTTP server. Call once from server.js.
+ * Redis adapter is attached later via enableSocketRedisAdapter() after Redis is ready.
  * JWT auth on handshake; each connection joins a private user room.
  */
 export function initSocket(httpServer) {
@@ -96,9 +156,6 @@ export function initSocket(httpServer) {
     pingInterval: 25000,
     pingTimeout: 20000,
   })
-
-  // Fire-and-forget adapter attach (does not block handshake setup)
-  attachRedisAdapter(io).catch(() => {})
 
   io.use(async (socket, next) => {
     try {
