@@ -16,6 +16,7 @@ import { globalApiRateLimiter } from "./middlewares/rateLimiter.js"
 import { getPublicHealth, getLiveness } from "./controllers/monitoringController.js"
 import apiRouter from "./routes/apiRouter.js"
 import { mountSwagger } from "./config/swagger.js"
+import { corsOriginDelegate } from "./config/corsOrigins.js"
 
 dotenv.config()
 
@@ -28,6 +29,16 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
   app.set("trust proxy", 1)
 }
 
+/** CORS must run early so preflight gets Access-Control-Allow-Origin */
+app.use(
+  cors({
+    origin: corsOriginDelegate,
+    credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token", "X-XSRF-Token"],
+  }),
+)
+
 app.use(securityHeaders())
 app.use(cookieParser())
 
@@ -37,28 +48,6 @@ app.use(noSqlSanitize())
 app.use(hardenParams())
 app.use(sanitizeInputs)
 app.use(csrfProtection)
-
-app.use(
-  cors({
-    origin: (() => {
-      const list = [
-        process.env.FRONTEND_URL,
-        ...(process.env.FRONTEND_URLS || "").split(","),
-      ]
-        .map((o) => String(o || "").trim())
-        .filter(Boolean)
-      if (process.env.NODE_ENV === "production") {
-        return list.length > 0 ? list : ["https://your-frontend-domain.com"]
-      }
-      return [
-        ...list,
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-      ]
-    })(),
-    credentials: true,
-  }),
-)
 
 app.use(globalApiRateLimiter)
 app.use(metricsMiddleware)

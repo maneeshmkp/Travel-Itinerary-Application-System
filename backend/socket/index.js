@@ -9,6 +9,7 @@ import {
   resolveRedisUrl,
   waitForRedisReady,
 } from "../config/redis.js"
+import { getAllowedOrigins } from "../config/corsOrigins.js"
 
 /** @type {import("socket.io").Server | null} */
 let io = null
@@ -136,15 +137,7 @@ export async function closeSocketRedisAdapter() {
 export function initSocket(httpServer) {
   if (io) return io
 
-  const origin =
-    process.env.NODE_ENV === "production"
-      ? [
-          process.env.FRONTEND_URL,
-          ...(process.env.FRONTEND_URLS || "").split(","),
-        ]
-          .map((o) => String(o || "").trim())
-          .filter(Boolean)
-      : ["http://localhost:3000", "http://127.0.0.1:3000"]
+  const origin = getAllowedOrigins()
 
   io = new Server(httpServer, {
     cors: {
